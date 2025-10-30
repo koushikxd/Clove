@@ -5,7 +5,9 @@ export const env = createEnv({
   server: {
     DATABASE_URL: z.string().url(),
     OPENAI_API_KEY: z.string().min(1).startsWith("sk-proj-"),
+    GITHUB_TOKEN: z.string().min(1),
     QDRANT_URL: z.string().url().optional().default("http://localhost:6333"),
+    QDRANT_API_KEY: z.string().min(1),
     NODE_ENV: z
       .enum(["development", "production"])
       .optional()
