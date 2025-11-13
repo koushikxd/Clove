@@ -1,4 +1,4 @@
-import { createEnv } from "@t3-oss/env-core";
+import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 export const env = createEnv({
@@ -6,46 +6,24 @@ export const env = createEnv({
     DATABASE_URL: z.string().url(),
     OPENAI_API_KEY: z.string().min(1).startsWith("sk-proj-"),
     GITHUB_TOKEN: z.string().min(1),
-    QDRANT_URL: z.string().url().optional().default("http://localhost:6333"),
+    QDRANT_URL: z.string().url().default("http://localhost:6333"),
     QDRANT_API_KEY: z.string().min(1),
-    NODE_ENV: z
-      .enum(["development", "production"])
-      .optional()
-      .default("development"),
+    NODE_ENV: z.enum(["development", "production"]).default("development"),
   },
-
-  /**
-   * The prefix that client-side variables must have. This is enforced both at
-   * a type-level and at runtime.
-   */
-  clientPrefix: "NEXT_PUBLIC_",
 
   client: {
-    NEXT_PUBLIC_APP_URL: z
-      .string()
-      .url()
-      .default("http://localhost:3000")
-      .optional(),
+    NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   },
 
-  /**
-   * What object holds the environment variables at runtime. This is usually
-   * `process.env` or `import.meta.env`.
-   */
-  runtimeEnv: process.env,
+  runtimeEnv: {
+    DATABASE_URL: process.env.DATABASE_URL,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+    QDRANT_URL: process.env.QDRANT_URL,
+    QDRANT_API_KEY: process.env.QDRANT_API_KEY,
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  },
 
-  /**
-   * By default, this library will feed the environment variables directly to
-   * the Zod validator.
-   *
-   * This means that if you have an empty string for a value that is supposed
-   * to be a number (e.g. `PORT=` in a ".env" file), Zod will incorrectly flag
-   * it as a type mismatch violation. Additionally, if you have an empty string
-   * for a value that is supposed to be a string with a default value (e.g.
-   * `DOMAIN=` in an ".env" file), the default value will never be applied.
-   *
-   * In order to solve these issues, we recommend that all new projects
-   * explicitly specify this option as true.
-   */
   emptyStringAsUndefined: true,
 });

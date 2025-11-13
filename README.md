@@ -1,43 +1,97 @@
-Clove
+# Clove
 
-A web application that scans GitHub repository (user input link), analyzes issues, classifies their difficulty, and provides step-by-step solutions for beginners to contribute to open source projects easy issues.
-Tech Stack
-Frontend
+An AI-powered tool that analyzes GitHub repository issues, classifies their difficulty, and generates step-by-step solutions to help beginners contribute to open source projects.
 
-    Next.js 15 (App Router)
+## Features
 
-    TypeScript
+- Scan GitHub repositories and fetch open issues
+- AI-powered issue analysis and difficulty classification
+- Vector-based codebase understanding using embeddings
+- Step-by-step solution generation for contributors
 
-    Tailwind CSS + shadcn/ui
+## Tech Stack
 
-    React Query (TanStack Query) for data fetching and caching
+- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS, shadcn/ui
+- **Database**: PostgreSQL (metadata), Qdrant (vector embeddings)
+- **APIs**: OpenAI (GPT-4o, text-embedding-3-small), GitHub GraphQL API
+- **State Management**: TanStack Query
 
-Backend
+## Prerequisites
 
-    Next.js Route Handlers (route.ts files)
+- Node.js 20+
+- pnpm
+- Docker & Docker Compose
 
-    Node.js 20+
+## Setup
 
-Database & Storage
+### 1. Clone and Install
 
-    PostgreSQL (for metadata, issues, solutions)
+```bash
+git clone <repository-url>
+cd clove
+pnpm install
+```
 
-    Qdrant (vector database for code embeddings)
+### 2. Environment Variables
 
-Background Jobs
+Create a `.env.local` file in the root directory:
 
-    QStash (Upstash CLI for local development)
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/main
+OPENAI_API_KEY=sk-proj-your-key-here
+GITHUB_TOKEN=your-github-token
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=your-qdrant-api-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
-APIs & Services
+**Required API Keys:**
+- `OPENAI_API_KEY`: Get from [OpenAI Platform](https://platform.openai.com)
+- `GITHUB_TOKEN`: Create at [GitHub Settings > Developer > Personal Access Tokens](https://github.com/settings/tokens)
+- `QDRANT_API_KEY`: Set any value for local development
 
-    GitHub GraphQL API for repo and issues data
+### 3. Start Docker Services
 
-    Vercel AI SDK for LLM interactions
+```bash
+docker-compose up -d
+```
 
-    OpenAI API (GPT-4o for generation, text-embedding-3-small for embeddings)
+This starts PostgreSQL and Qdrant containers.
 
-Development Environment
+### 4. Run Database Migrations
 
-    Docker & Docker Compose for local development
+```bash
+pnpm drizzle-kit push
+```
 
-    All services containerized
+### 5. Start Development Server
+
+```bash
+pnpm dev
+```
+
+Visit [http://localhost:3000](http://localhost:3000)
+
+## Development Commands
+
+```bash
+pnpm dev          # Start development server
+pnpm build        # Build for production
+pnpm start        # Start production server
+pnpm lint         # Run ESLint
+```
+
+## Project Structure
+
+```
+app/
+  api/              # API routes
+  repository/       # Repository and issue pages
+components/         # React components
+lib/
+  ai/               # AI clients and generators
+  db/               # Database schema and client
+  github/           # GitHub API integration
+  vector/           # Qdrant vector operations
+  indexing/         # Code chunking and indexing
+```
