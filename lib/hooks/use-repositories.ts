@@ -66,6 +66,31 @@ export function useIndexRepository() {
       }
       return res.json();
     },
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ["repositories"] });
+      const previousRepos = queryClient.getQueryData(["repositories"]);
+
+      const tempRepo: Repository = {
+        id: `temp-${Date.now()}`,
+        name: variables.repoUrl.split("/").pop() || "Repository",
+        owner: variables.repoUrl.split("/").slice(-2, -1)[0] || "Owner",
+        url: variables.repoUrl,
+        description: null,
+        stars: 0,
+        language: null,
+        chunksIndexed: 0,
+        status: "indexing",
+        indexedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData(
+        ["repositories"],
+        (old: Repository[] = []) => [tempRepo, ...old]
+      );
+
+      return { previousRepos };
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["repositories"] });
       if (data.repositoryId) {
@@ -75,8 +100,49 @@ export function useIndexRepository() {
       }
       toast.success("Repository indexed successfully!");
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      if (context?.previousRepos) {
+        queryClient.setQueryData(["repositories"], context.previousRepos);
+      }
       toast.error(error.message || "Failed to index repository");
+    },
+  });
+}
+
+export function useDeleteRepository() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (repositoryId: string) => {
+      const res = await fetch(`/api/repository/${repositoryId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete repository");
+      }
+      return res.json();
+    },
+    onMutate: async (repositoryId) => {
+      await queryClient.cancelQueries({ queryKey: ["repositories"] });
+      const previousRepos = queryClient.getQueryData(["repositories"]);
+
+      queryClient.setQueryData(
+        ["repositories"],
+        (old: Repository[] = []) => old.filter((repo) => repo.id !== repositoryId)
+      );
+
+      return { previousRepos };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["repositories"] });
+      toast.success("Repository deleted successfully!");
+    },
+    onError: (error: Error, variables, context) => {
+      if (context?.previousRepos) {
+        queryClient.setQueryData(["repositories"], context.previousRepos);
+      }
+      toast.error(error.message || "Failed to delete repository");
     },
   });
 }

@@ -33,3 +33,24 @@ export async function GET(
     );
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    await db.delete(repositoriesTable).where(eq(repositoriesTable.id, id));
+
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to delete repository",
+      },
+      { status: 500 }
+    );
+  }
+}

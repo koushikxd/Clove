@@ -4,6 +4,7 @@ import {
   varchar,
   timestamp,
   text,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const repositoriesTable = pgTable("repositories", {
@@ -17,5 +18,26 @@ export const repositoriesTable = pgTable("repositories", {
   chunksIndexed: integer().notNull().default(0),
   status: varchar({ length: 50 }).notNull().default("indexed"),
   indexedAt: timestamp().notNull().defaultNow(),
+  createdAt: timestamp().notNull().defaultNow(),
+});
+
+export const chatsTable = pgTable("chats", {
+  id: varchar({ length: 255 }).primaryKey(),
+  repositoryId: varchar({ length: 255 })
+    .notNull()
+    .references(() => repositoriesTable.id, { onDelete: "cascade" }),
+  title: varchar({ length: 255 }).notNull().default("New Chat"),
+  createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow(),
+});
+
+export const messagesTable = pgTable("messages", {
+  id: varchar({ length: 255 }).primaryKey(),
+  chatId: varchar({ length: 255 })
+    .notNull()
+    .references(() => chatsTable.id, { onDelete: "cascade" }),
+  role: varchar({ length: 20 }).notNull(),
+  content: text().notNull(),
+  metadata: jsonb(),
   createdAt: timestamp().notNull().defaultNow(),
 });
