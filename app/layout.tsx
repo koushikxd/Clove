@@ -5,6 +5,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,7 +41,10 @@ export default function RootLayout({
         >
           <ErrorBoundary>
             <Providers>
-              {children}
+              <SidebarProvider>
+                <AppSidebar />
+                <SidebarInset>{children}</SidebarInset>
+              </SidebarProvider>
               <Toaster />
             </Providers>
           </ErrorBoundary>
