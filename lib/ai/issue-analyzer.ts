@@ -1,20 +1,21 @@
 import { generateText } from "ai";
 import { openai } from "./clients/openai";
-import { semanticSearch } from "../vector/utils";
+import { queryRepository } from "../rag";
 
 export const analyzeIssue = async (
   issueTitle: string,
   issueBody: string,
-  repositoryId: string,
+  repositoryId: string
 ) => {
   const query = `${issueTitle}\n${issueBody}`;
-  const results = await semanticSearch(query, repositoryId, 5);
+  const results = await queryRepository({
+    query,
+    repositoryId,
+    limit: 5,
+  });
 
   const context = results
-    .map(
-      (r) =>
-        `File: ${r?.payload?.filePath} (lines ${r?.payload?.lineStart}-${r?.payload?.lineEnd})\n${r.payload?.content}`,
-    )
+    .map((r) => `File: ${r.metadata.filePath}\n${r.content}`)
     .join("\n\n---\n\n");
 
   const { text } = await generateText({
