@@ -46,9 +46,37 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 **Required API Keys:**
-- `OPENAI_API_KEY`: Get from [OpenAI Platform](https://platform.openai.com)
-- `GITHUB_TOKEN`: Create at [GitHub Settings > Developer > Personal Access Tokens](https://github.com/settings/tokens)
-- `QDRANT_API_KEY`: Set any value for local development
+
+#### OpenAI API Key
+Get from [OpenAI Platform](https://platform.openai.com/api-keys)
+
+#### GitHub Token
+Create at [GitHub Settings > Developer Settings > Personal Access Tokens](https://github.com/settings/peronal-access-tokens)
+
+**Option 1: Fine-grained Token (Recommended)**
+1. Go to [Fine-grained tokens](https://github.com/settings/personal-access-tokens)
+2. Click "Generate new token"
+3. Set token name and expiration
+4. Under "Repository access", select:
+   - "Public Repositories (read-only)" OR
+   - "Only select repositories" (choose specific repos you want to analyze)
+5. Under "Repository permissions", set:
+   - **Contents**: Read-only (required for reading code)
+   - **Issues**: Read-only (required for fetching issues)
+   - **Metadata**: Read-only (automatically included)
+6. Click "Generate token" and copy it
+
+**Option 2: Classic Token**
+1. Go to [Tokens (classic)](https://github.com/settings/tokens)
+2. Click "Generate new token (classic)"
+3. Set note and expiration
+4. Select scopes:
+   - **`public_repo`** (for public repositories only) OR
+   - **`repo`** (if you need access to private repositories)
+5. Click "Generate token" and copy it
+
+#### Qdrant API Key
+Set any value for local development (e.g., `local-dev-key`)
 
 ### 3. Start Docker Services
 
