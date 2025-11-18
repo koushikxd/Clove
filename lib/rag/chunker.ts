@@ -89,6 +89,8 @@ const getAllFiles = async (repoPath: string): Promise<string[]> => {
   return files;
 };
 
+const MARKDOWN_EXTENSIONS = new Set([".md", ".mdx", ".markdown"]);
+
 export const chunkFile = async (
   content: string,
   filePath: string,
@@ -97,34 +99,43 @@ export const chunkFile = async (
 ): Promise<CodeChunk[]> => {
   if (!content || !filePath) return [];
 
-  const fileExtension = extname(filePath);
-  const baseMetadata = {
-    repositoryId,
-    repositoryUrl,
-    filePath,
-    fileExtension,
-    type: "code",
-  };
+  try {
+    const fileExtension = extname(filePath);
+    const baseMetadata = {
+      repositoryId,
+      repositoryUrl,
+      filePath,
+      fileExtension,
+      type: "code",
+    };
 
-  const doc = MDocument.fromMarkdown(content, baseMetadata);
+    const isMarkdown = MARKDOWN_EXTENSIONS.has(fileExtension.toLowerCase());
 
-  const chunks = await doc.chunk({
-    strategy: "semantic-markdown",
-    maxSize: CHUNK_SIZE,
-    overlap: CHUNK_OVERLAP,
-    lengthFunction: estimateTokenCount,
-    keepSeparator: true,
-    stripWhitespace: false,
-  });
+    const doc = isMarkdown
+      ? MDocument.fromMarkdown(content, baseMetadata)
+      : MDocument.fromText(content, baseMetadata);
 
-  return chunks.map((chunk, index) => ({
-    id: chunk.id_,
-    text: chunk.text,
-    metadata: {
-      ...baseMetadata,
-      chunkIndex: index,
-    },
-  }));
+    const chunks = await doc.chunk({
+      strategy: "recursive",
+      maxSize: CHUNK_SIZE,
+      overlap: CHUNK_OVERLAP,
+      lengthFunction: estimateTokenCount,
+      keepSeparator: true,
+      stripWhitespace: false,
+    });
+
+    return chunks.map((chunk, index) => ({
+      id: chunk.id_,
+      text: chunk.text,
+      metadata: {
+        ...baseMetadata,
+        chunkIndex: index,
+      },
+    }));
+  } catch (error) {
+    console.error(`Error chunking file ${filePath}:`, error);
+    return [];
+  }
 };
 
 export const chunkFiles = async (

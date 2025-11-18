@@ -8,6 +8,7 @@ import {
   deleteVectors,
   type SearchFilters,
 } from "./vector-store";
+import { countTokens } from "../ai/token-counter";
 
 type IndexRepositoryParams = {
   repoPath: string;
@@ -22,6 +23,7 @@ type QueryOptions = {
   limit?: number;
   scoreThreshold?: number;
   collectionName?: string;
+  maxTokens?: number;
 };
 
 type Source = {
@@ -33,19 +35,45 @@ type Source = {
 export const indexRepository = async (
   params: IndexRepositoryParams
 ): Promise<string[]> => {
-  const { repoPath, repositoryId, repositoryUrl, collectionName } = params;
+  try {
+    const { repoPath, repositoryId, repositoryUrl, collectionName } = params;
 
-  const chunks = await chunkFiles(repoPath, repositoryId, repositoryUrl);
+    const chunks = await chunkFiles(repoPath, repositoryId, repositoryUrl);
 
-  if (chunks.length === 0) {
-    return [];
+    if (chunks.length === 0) {
+      console.warn("No chunks generated from repository");
+      return [];
+    }
+
+    console.log(`Generated ${chunks.length} chunks, generating embeddings...`);
+
+    const { embeddings } = await generateEmbeddings(chunks);
+
+    if (!embeddings || embeddings.length === 0) {
+      throw new Error("Failed to generate embeddings");
+    }
+
+    if (embeddings.length !== chunks.length) {
+      throw new Error(
+        `Embedding count mismatch: ${embeddings.length} embeddings for ${chunks.length} chunks`
+      );
+    }
+
+    console.log(
+      `Generated ${embeddings.length} embeddings, storing vectors...`
+    );
+
+    const vectorIds = await upsertVectors(chunks, embeddings, collectionName);
+
+    console.log(`Successfully stored ${vectorIds.length} vectors`);
+
+    return vectorIds;
+  } catch (error) {
+    console.error("Error in indexRepository:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to index repository");
   }
-
-  const { embeddings } = await generateEmbeddings(chunks);
-
-  const vectorIds = await upsertVectors(chunks, embeddings, collectionName);
-
-  return vectorIds;
 };
 
 export const queryRepository = async (
@@ -57,6 +85,7 @@ export const queryRepository = async (
     limit = 8,
     scoreThreshold,
     collectionName,
+    maxTokens,
   } = options;
 
   const validatedLimit = Math.max(3, Math.min(15, limit));
@@ -77,11 +106,31 @@ export const queryRepository = async (
     collectionName,
   });
 
-  return results.map((result) => ({
+  const sources = results.map((result) => ({
     content: result.text,
     metadata: result.metadata,
     score: result.score,
   }));
+
+  if (!maxTokens) {
+    return sources;
+  }
+
+  const filteredSources: Source[] = [];
+  let currentTokens = 0;
+
+  for (const source of sources) {
+    const sourceTokens = countTokens(source.content);
+
+    if (currentTokens + sourceTokens <= maxTokens) {
+      filteredSources.push(source);
+      currentTokens += sourceTokens;
+    } else {
+      break;
+    }
+  }
+
+  return filteredSources;
 };
 
 export const deleteFromVectorStore = async (

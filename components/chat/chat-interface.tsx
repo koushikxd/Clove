@@ -9,6 +9,7 @@ import {
 } from "@/lib/hooks/use-chats";
 import { ChatMessageComponent } from "./chat-message";
 import { ChatInput } from "./chat-input";
+import { AiInput } from "@/components/ui/text-area-input";
 import { ChatLoadingProgress, ChatIndexingProgress } from "./chat-loading";
 import { ChatHeader } from "./chat-header";
 import type { Issue } from "@/lib/hooks/use-issues";
@@ -288,14 +289,27 @@ export const ChatInterface = () => {
           )}
 
           <div ref={messagesEndRef} />
+
+          {messages.length > 0 && (
+            <div className="mt-8">
+              <AiInput
+                onSubmit={handleSubmit}
+                disabled={
+                  state === "indexing" || state === "generating-solution"
+                }
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      <ChatInput
-        onSubmit={handleSubmit}
-        disabled={state === "indexing" || state === "generating-solution"}
-        placeholder={placeholder}
-      />
+      {messages.length === 0 && (
+        <ChatInput
+          onSubmit={handleSubmit}
+          disabled={state === "indexing" || state === "generating-solution"}
+          placeholder={placeholder}
+        />
+      )}
     </div>
   );
 };

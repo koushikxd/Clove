@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
         repositoryUrl: repoUrl,
       });
 
+      if (!vectorIds || vectorIds.length === 0) {
+        throw new Error("No chunks were indexed from the repository");
+      }
+
       await db.insert(repositoriesTable).values({
         id: repositoryId,
         name: repoData.name,
@@ -64,13 +68,18 @@ export async function POST(req: NextRequest) {
       });
     } catch (error) {
       await cleanup();
+      console.error("Indexing error:", error);
       throw error;
     }
   } catch (error: unknown) {
+    console.error("API route error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to index repository";
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to index repository",
+        success: false,
+        error: errorMessage,
       },
       { status: 500 }
     );
