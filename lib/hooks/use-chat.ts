@@ -385,27 +385,18 @@ export const useChat = (options: UseChatOptions = {}) => {
 
       setState("generating-solution");
 
-      const streamingMessage = await addMessage(
-        "assistant",
-        "",
-        undefined,
-        true
-      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-      setMessages((prev) => {
-        const updated = [...prev];
-        if (
-          updated.length > 0 &&
-          updated[updated.length - 1].id === streamingMessage.id
-        ) {
-          updated[updated.length - 1] = {
-            ...updated[updated.length - 1],
-            type: "assistant",
-            streaming: true,
-          };
-        }
-        return updated;
-      });
+      const streamingMessageId = nanoid();
+
+      const loadingMessage: ChatMessage = {
+        id: streamingMessageId,
+        type: "assistant",
+        content: "",
+        timestamp: new Date(),
+        loading: true,
+      };
+      setMessages((prev) => [...prev, loadingMessage]);
 
       try {
         const response = await fetch("/api/ai/suggest-solution", {
@@ -437,51 +428,55 @@ export const useChat = (options: UseChatOptions = {}) => {
 
           setMessages((prev) => {
             const updated = [...prev];
+            const lastIndex = updated.length - 1;
             if (
-              updated.length > 0 &&
-              updated[updated.length - 1].id === streamingMessage.id
+              lastIndex >= 0 &&
+              updated[lastIndex].id === streamingMessageId
             ) {
-              updated[updated.length - 1] = {
-                ...updated[updated.length - 1],
+              updated[lastIndex] = {
+                id: streamingMessageId,
                 type: "assistant",
                 content: fullText,
+                timestamp: updated[lastIndex].timestamp,
                 streaming: true,
+                loading: false,
               };
             }
             return updated;
           });
+
           onChunk?.(chunk);
         }
 
         setMessages((prev) => {
           const updated = [...prev];
-          if (
-            updated.length > 0 &&
-            updated[updated.length - 1].id === streamingMessage.id
-          ) {
-            updated[updated.length - 1] = {
-              ...updated[updated.length - 1],
+          const lastIndex = updated.length - 1;
+          if (lastIndex >= 0 && updated[lastIndex].id === streamingMessageId) {
+            updated[lastIndex] = {
+              id: streamingMessageId,
               type: "assistant",
               content: fullText,
+              timestamp: updated[lastIndex].timestamp,
               streaming: false,
+              loading: false,
             };
           }
           return updated;
         });
 
         if (activeChatId) {
-          optimisticMessageIds.current.add(streamingMessage.id);
+          optimisticMessageIds.current.add(streamingMessageId);
           try {
             await saveMessage.mutateAsync({
-              id: streamingMessage.id,
+              id: streamingMessageId,
               chatId: activeChatId,
               role: "assistant",
               content: fullText,
               metadata: null,
             });
-            optimisticMessageIds.current.delete(streamingMessage.id);
+            optimisticMessageIds.current.delete(streamingMessageId);
           } catch (error) {
-            optimisticMessageIds.current.delete(streamingMessage.id);
+            optimisticMessageIds.current.delete(streamingMessageId);
             throw error;
           }
         }
@@ -492,14 +487,12 @@ export const useChat = (options: UseChatOptions = {}) => {
         setState("idle");
         setMessages((prev) => {
           const updated = [...prev];
-          if (
-            updated.length > 0 &&
-            updated[updated.length - 1].id === streamingMessage.id
-          ) {
-            updated[updated.length - 1] = {
-              ...updated[updated.length - 1],
-              type: "assistant",
+          const lastIndex = updated.length - 1;
+          if (lastIndex >= 0 && updated[lastIndex].id === streamingMessageId) {
+            updated[lastIndex] = {
+              ...updated[lastIndex],
               streaming: false,
+              loading: false,
             };
           }
           return updated;
@@ -507,7 +500,7 @@ export const useChat = (options: UseChatOptions = {}) => {
         throw error;
       }
     },
-    [currentRepo, addMessage, activeChatId, saveMessage]
+    [currentRepo, activeChatId, saveMessage]
   );
 
   const setChat = useCallback((chatId: string | null) => {

@@ -1,37 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import {
-  useRepositories,
-  useDeleteRepository,
-} from "@/lib/hooks/use-repositories";
-import { useCreateChat } from "@/lib/hooks/use-chats";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-} from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import {
-  GitBranch,
-  ChevronRight,
-  Star,
-  Trash2,
-  MessageSquarePlus,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ModeToggle } from "@/components/ui/mode-toggle";
-import { ChatList } from "./chat/chat-list";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +10,37 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+} from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCreateChat } from "@/lib/hooks/use-chats";
+import {
+  useDeleteRepository,
+  useRepositories,
+} from "@/lib/hooks/use-repositories";
+import {
+  ChevronRight,
+  GitBranch,
+  MessageSquarePlus,
+  Star,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { ChatList } from "./chat/chat-list";
 
 const AppSidebarLoadingSkeleton = () => (
   <SidebarGroup className="p-0 px-3 pb-2">
@@ -118,7 +117,6 @@ export const AppSidebar = () => {
           >
             Clove
           </Link>
-          <ModeToggle />
         </div>
       </SidebarHeader>
 

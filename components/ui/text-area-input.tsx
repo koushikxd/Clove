@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { Globe, Send } from "lucide-react";
+import { motion } from "motion/react";
+import { Send } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,33 +58,29 @@ function useAutoResizeTextarea({
 const MIN_HEIGHT = 48;
 const MAX_HEIGHT = 164;
 
-const AnimatedPlaceholder = ({ showSearch }: { showSearch: boolean }) => (
-  <AnimatePresence mode="wait">
-    <motion.p
-      key={showSearch ? "search" : "ask"}
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -5 }}
-      transition={{ duration: 0.1 }}
-      className="pointer-events-none w-[150px] text-sm absolute text-black/70 dark:text-white/70"
-    >
-      {showSearch ? "Search the web..." : "Ask Skiper Ai..."}
-    </motion.p>
-  </AnimatePresence>
+const AnimatedPlaceholder = () => (
+  <motion.p
+    initial={{ opacity: 0, y: 5 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.1 }}
+    className="pointer-events-none text-sm absolute text-black/70 dark:text-white/70 whitespace-nowrap"
+  >
+    Ask about issues or request solutions...
+  </motion.p>
 );
 
 interface AiInputProps {
   onSubmit?: (message: string) => void;
   disabled?: boolean;
+  className?: string;
 }
 
-export function AiInput({ onSubmit, disabled }: AiInputProps = {}) {
+export function AiInput({ onSubmit, disabled, className }: AiInputProps = {}) {
   const [value, setValue] = useState("");
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: MIN_HEIGHT,
     maxHeight: MAX_HEIGHT,
   });
-  const [showSearch, setShowSearch] = useState(true);
 
   const handleSubmit = () => {
     if (!value.trim() || disabled) return;
@@ -94,9 +90,9 @@ export function AiInput({ onSubmit, disabled }: AiInputProps = {}) {
   };
 
   return (
-    <div className="w-full py-4">
-      <div className="relative max-w-xl border rounded-[22px] border-black/5 p-1 w-full mx-auto">
-        <div className="relative rounded-2xl border border-black/5 bg-neutral-800/5 flex flex-col">
+    <div className={cn("w-full", className)}>
+      <div className="relative w-full pb-4">
+        <div className="relative rounded-2xl border border-border flex flex-col">
           <div
             className="overflow-y-auto"
             style={{ maxHeight: `${MAX_HEIGHT}px` }}
@@ -121,81 +117,21 @@ export function AiInput({ onSubmit, disabled }: AiInputProps = {}) {
               />
               {!value && (
                 <div className="absolute left-4 top-3">
-                  <AnimatedPlaceholder showSearch={showSearch} />
+                  <AnimatedPlaceholder />
                 </div>
               )}
             </div>
           </div>
 
-          <div className="h-12 bg-black/5 dark:bg-white/5 rounded-b-xl">
-            <div className="absolute left-3 bottom-3 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSearch(!showSearch);
-                }}
-                className={cn(
-                  "rounded-full transition-all flex items-center gap-2 px-1.5 py-1 border h-8",
-                  showSearch
-                    ? "bg-[#ff3f17]/15 border-[#ff3f17] text-[#ff3f17]"
-                    : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
-                )}
-              >
-                <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                  <motion.div
-                    animate={{
-                      rotate: showSearch ? 180 : 0,
-                      scale: showSearch ? 1.1 : 1,
-                    }}
-                    whileHover={{
-                      rotate: showSearch ? 180 : 15,
-                      scale: 1.1,
-                      transition: {
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 10,
-                      },
-                    }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 260,
-                      damping: 25,
-                    }}
-                  >
-                    <Globe
-                      className={cn(
-                        "w-4 h-4",
-                        showSearch ? "text-[#ff3f17]" : "text-inherit"
-                      )}
-                    />
-                  </motion.div>
-                </div>
-                <AnimatePresence>
-                  {showSearch && (
-                    <motion.span
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{
-                        width: "auto",
-                        opacity: 1,
-                      }}
-                      exit={{ width: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-sm overflow-hidden whitespace-nowrap text-[#ff3f17] shrink-0"
-                    >
-                      Search
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
-            </div>
-            <div className="absolute right-3 bottom-3">
+          <div className="h-12 bg-black/5 dark:bg-white/5 rounded-b-xl flex items-center justify-end px-3">
+            <div>
               <button
                 type="button"
                 onClick={handleSubmit}
                 className={cn(
                   "rounded-full p-2 transition-colors",
                   value
-                    ? "bg-[#ff3f17]/15 text-[#ff3f17]"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
                 )}
               >

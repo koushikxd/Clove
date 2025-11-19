@@ -8,7 +8,6 @@ import {
   useChat as useChatData,
 } from "@/lib/hooks/use-chats";
 import { ChatMessageComponent } from "./chat-message";
-import { ChatInput } from "./chat-input";
 import { AiInput } from "@/components/ui/text-area-input";
 import { ChatLoadingProgress, ChatIndexingProgress } from "./chat-loading";
 import { ChatHeader } from "./chat-header";
@@ -174,12 +173,6 @@ export const ChatInterface = () => {
     [handleSubmit]
   );
 
-  const placeholder = useMemo(() => {
-    if (state === "indexing") return "Indexing repository...";
-    if (state === "generating-solution") return "Generating solution...";
-    return "Paste a GitHub URL or ask about issues...";
-  }, [state]);
-
   return (
     <div className="flex flex-col h-screen">
       <ChatHeader repositoryName={currentRepo?.name} />
@@ -289,27 +282,14 @@ export const ChatInterface = () => {
           )}
 
           <div ref={messagesEndRef} />
-
-          {messages.length > 0 && (
-            <div className="mt-8">
-              <AiInput
-                onSubmit={handleSubmit}
-                disabled={
-                  state === "indexing" || state === "generating-solution"
-                }
-              />
-            </div>
-          )}
         </div>
       </div>
 
-      {messages.length === 0 && (
-        <ChatInput
-          onSubmit={handleSubmit}
-          disabled={state === "indexing" || state === "generating-solution"}
-          placeholder={placeholder}
-        />
-      )}
+      <AiInput
+        onSubmit={handleSubmit}
+        disabled={state === "indexing" || state === "generating-solution"}
+        className="mx-auto max-w-[870px]"
+      />
     </div>
   );
 };

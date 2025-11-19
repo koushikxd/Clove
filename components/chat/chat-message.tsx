@@ -1,12 +1,13 @@
 "use client";
 
-import { memo } from "react";
-import { motion } from "motion/react";
-import { Bot, User } from "lucide-react";
-import { Streamdown } from "streamdown";
-import type { Issue } from "@/lib/hooks/use-issues";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import type { Issue } from "@/lib/hooks/use-issues";
+import { Bot, User } from "lucide-react";
+import { motion } from "motion/react";
+import { memo } from "react";
+import { Streamdown } from "streamdown";
+import { TextShimmer } from "../motion-primitives/text-shimmer";
 
 export type MessageType = "user" | "assistant" | "system";
 
@@ -17,6 +18,7 @@ export interface ChatMessage {
   timestamp: Date;
   issues?: Issue[];
   streaming?: boolean;
+  loading?: boolean;
 }
 
 interface ChatMessageProps {
@@ -76,27 +78,33 @@ const ChatMessageComponentBase = ({
       </div>
 
       <div
-        className={`flex-1 ${
+        className={`flex-1 mt-1 ${
           isUser ? "items-end" : "items-start"
         } flex flex-col`}
       >
-        <div
-          className={`rounded-2xl px-4 py-3 max-w-3xl ${
-            isUser
-              ? "bg-muted border border-primary/30 text-foreground"
-              : "bg-card border border-border text-card-foreground"
-          }`}
-        >
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <Streamdown
-              parseIncompleteMarkdown={true}
-              shikiTheme={["tokyo-night", "tokyo-night"]}
-              isAnimating={message.streaming}
-            >
-              {message.content}
-            </Streamdown>
+        {message.loading ? (
+          <div className="">
+            <TextShimmer>Generating solution...</TextShimmer>
           </div>
-        </div>
+        ) : (
+          <div
+            className={`rounded-2xl px-4 py-3 max-w-3xl ${
+              isUser
+                ? "bg-muted border border-primary/30 text-foreground"
+                : "bg-card border border-border text-card-foreground"
+            }`}
+          >
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <Streamdown
+                parseIncompleteMarkdown={true}
+                shikiTheme={["tokyo-night", "tokyo-night"]}
+                isAnimating={message.streaming}
+              >
+                {message.content}
+              </Streamdown>
+            </div>
+          </div>
+        )}
 
         {message.issues && message.issues.length > 0 && (
           <div className="mt-3 space-y-2 w-full max-w-3xl">
@@ -141,12 +149,12 @@ const ChatMessageComponentBase = ({
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground mt-1">
+        {/* <div className="text-xs text-muted-foreground mt-1">
           {message.timestamp.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           })}
-        </div>
+        </div> */}
       </div>
     </motion.div>
   );
@@ -159,6 +167,7 @@ export const ChatMessageComponent = memo(
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content === nextProps.message.content &&
       prevProps.message.streaming === nextProps.message.streaming &&
+      prevProps.message.loading === nextProps.message.loading &&
       prevProps.message.type === nextProps.message.type
     );
   }
