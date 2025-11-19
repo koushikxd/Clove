@@ -1,38 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseRepoUrl } from "@/lib/github/client";
-import { getClassifiedIssues, getEasyIssues } from "@/lib/github/issues";
+import { getEnrichedIssues } from "@/lib/github/issues";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const repoUrl = searchParams.get("repoUrl");
-    const difficulty = searchParams.get("difficulty") as
-      | "easy"
-      | "medium"
-      | "hard"
-      | null;
+    const filter = searchParams.get("filter");
 
     if (!repoUrl) {
       return NextResponse.json(
         { error: "Repository URL is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     const { owner, repo } = parseRepoUrl(repoUrl);
+    let issues = await getEnrichedIssues(owner, repo);
 
-    const issues =
-      difficulty === "easy"
-        ? await getEasyIssues(owner, repo)
-        : (await getClassifiedIssues(owner, repo)).filter(
-            (i) => !difficulty || i.difficulty === difficulty,
-          );
+    if (filter === "recommended") {
+      issues = issues.filter((i) => i.isRecommended);
+    }
 
     return NextResponse.json({ issues });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: error.message || "Failed to fetch issues" },
-      { status: 500 },
+      { error: errorMessage || "Failed to fetch issues" },
+      { status: 500 }
     );
   }
 }

@@ -324,7 +324,7 @@ export const useChat = (options: UseChatOptions = {}) => {
 
         addMessage(
           "assistant",
-          `Successfully indexed **${data.repository.name}**!\n\n✓ Analyzed ${data.chunksIndexed} code chunks\n✓ Generated embeddings\n✓ Ready to solve issues\n\nWhat difficulty level would you like to tackle? I can show you **easy**, **medium**, or **hard** issues.`
+          `Successfully indexed **${data.repository.name}**!\n\n✓ Analyzed ${data.chunksIndexed} code chunks\n✓ Generated embeddings\n✓ Ready to solve issues\n\nI can show you **all issues** or filter to **recommended** issues for beginners. What would you like to see?`
         );
 
         return data;
@@ -337,7 +337,7 @@ export const useChat = (options: UseChatOptions = {}) => {
   );
 
   const fetchIssues = useCallback(
-    async (difficulty?: "easy" | "medium" | "hard") => {
+    async (filter?: "all" | "recommended") => {
       if (!currentRepo) {
         throw new Error("No repository selected");
       }
@@ -347,7 +347,7 @@ export const useChat = (options: UseChatOptions = {}) => {
       try {
         const params = new URLSearchParams({
           repoUrl: currentRepo.url,
-          ...(difficulty && { difficulty }),
+          ...(filter && filter !== "all" && { filter }),
         });
 
         const response = await fetch(`/api/repository/issues?${params}`);
@@ -359,14 +359,24 @@ export const useChat = (options: UseChatOptions = {}) => {
         const data = await response.json();
         setState("idle");
 
-        const difficultyText = difficulty ? `${difficulty} ` : "";
-        addMessage(
-          "assistant",
-          `Found **${data.issues.length}** ${difficultyText}issue${
-            data.issues.length !== 1 ? "s" : ""
-          } in **${currentRepo.name}**. Select one to get a detailed solution:`,
-          data.issues
-        );
+        const filterText = filter === "recommended" ? "recommended " : "";
+        const recommendedCount = data.issues.filter(
+          (i: Issue) => i.isRecommended
+        ).length;
+
+        let message = `Found **${data.issues.length}** ${filterText}issue${
+          data.issues.length !== 1 ? "s" : ""
+        } in **${currentRepo.name}**.`;
+
+        if (filter !== "recommended" && recommendedCount > 0) {
+          message += ` ${recommendedCount} ${
+            recommendedCount === 1 ? "is" : "are"
+          } recommended for beginners.`;
+        }
+
+        message += " Select one to get a detailed solution:";
+
+        addMessage("assistant", message, data.issues);
 
         return data.issues;
       } catch (error) {

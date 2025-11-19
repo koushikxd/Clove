@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GitHub Issue Solver",
+  title: "Clove",
   description: "AI-powered GitHub issue analysis and solution generator",
 };
 

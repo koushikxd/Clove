@@ -10,21 +10,26 @@ interface Issue {
   title: string;
   body: string | null;
   state: string;
-  labels: Array<{ name: string }>;
+  labels: Array<{
+    name: string;
+    color: string;
+    description?: string;
+  }>;
   created_at: string;
   html_url: string;
   comments: number;
 }
 
-interface ClassifiedIssue extends Issue {
-  difficulty: "easy" | "medium" | "hard";
-  tags: string[];
+interface EnrichedIssue extends Issue {
+  complexityScore: number;
+  isRecommended: boolean;
+  recommendationReason?: string;
 }
 
 export const getIssues = async (
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open",
+  state: "open" | "closed" | "all" = "open"
 ) => {
   const { data } = await octokit.rest.issues.listForRepo({
     owner,
@@ -33,42 +38,144 @@ export const getIssues = async (
     per_page: 100,
   });
 
-  return data.filter((issue) => !issue.pull_request) as Issue[];
+  return data
+    .filter((issue) => !issue.pull_request)
+    .map((issue) => ({
+      number: issue.number,
+      title: issue.title,
+      body: issue.body,
+      state: issue.state,
+      labels: issue.labels.map((label) =>
+        typeof label === "string"
+          ? { name: label, color: "808080", description: undefined }
+          : {
+              name: label.name || "",
+              color: label.color || "808080",
+              description: label.description || undefined,
+            }
+      ),
+      created_at: issue.created_at,
+      html_url: issue.html_url,
+      comments: issue.comments,
+    })) as Issue[];
 };
 
-export const classifyIssue = (issue: Issue): ClassifiedIssue => {
-  let score = 50;
-  const tags: string[] = [];
-
-  const easyLabels = ["good first issue", "beginner", "easy", "documentation"];
-  const hardLabels = ["complex", "architecture", "breaking change"];
+export const analyzeIssueComplexity = (issue: Issue): EnrichedIssue => {
+  let complexityScore = 50;
+  let isRecommended = false;
+  let recommendationReason: string | undefined;
 
   const labels = issue.labels.map((l) => l.name.toLowerCase());
+  const title = issue.title.toLowerCase();
+  const body = (issue.body || "").toLowerCase();
 
-  if (labels.some((l) => easyLabels.some((easy) => l.includes(easy)))) {
-    score -= 30;
-    tags.push("beginner-friendly");
+  const beginnerFriendlyLabels = [
+    "good first issue",
+    "beginner",
+    "easy",
+    "first-timers-only",
+    "help wanted",
+    "starter",
+    "good-first-bug",
+  ];
+
+  const documentationKeywords = [
+    "documentation",
+    "docs",
+    "readme",
+    "typo",
+    "spelling",
+    "comment",
+  ];
+
+  const complexKeywords = [
+    "architecture",
+    "refactor",
+    "breaking change",
+    "performance",
+    "optimization",
+    "security",
+    "critical",
+  ];
+
+  const hasBeginnerLabel = labels.some((l) =>
+    beginnerFriendlyLabels.some((bf) => l.includes(bf))
+  );
+
+  const isDocumentation =
+    labels.some((l) => documentationKeywords.some((dk) => l.includes(dk))) ||
+    documentationKeywords.some((dk) => title.includes(dk));
+
+  const isComplex =
+    labels.some((l) => complexKeywords.some((ck) => l.includes(ck))) ||
+    complexKeywords.some((ck) => title.includes(ck) || body.includes(ck));
+
+  if (hasBeginnerLabel) {
+    complexityScore -= 30;
+    isRecommended = true;
+    recommendationReason = "Labeled as beginner-friendly";
   }
 
-  if (labels.some((l) => hardLabels.some((hard) => l.includes(hard)))) {
-    score += 30;
+  if (isDocumentation) {
+    complexityScore -= 25;
+    if (!isRecommended) {
+      isRecommended = true;
+      recommendationReason = "Documentation update";
+    }
   }
 
-  if (issue.comments > 10) score += 15;
-  if ((issue.body?.length || 0) < 200) score -= 10;
+  if (isComplex) {
+    complexityScore += 35;
+    isRecommended = false;
+  }
 
-  const difficulty: "easy" | "medium" | "hard" =
-    score < 40 ? "easy" : score < 70 ? "medium" : "hard";
+  const commentCount = issue.comments || 0;
+  if (commentCount > 15) {
+    complexityScore += 20;
+  } else if (commentCount > 5) {
+    complexityScore += 10;
+  } else if (commentCount === 0) {
+    complexityScore -= 5;
+  }
 
-  return { ...issue, difficulty, tags };
+  const bodyLength = issue.body?.length || 0;
+  if (bodyLength < 150) {
+    complexityScore -= 10;
+  } else if (bodyLength > 1000) {
+    complexityScore += 15;
+  }
+
+  const issueAge = Date.now() - new Date(issue.created_at).getTime();
+  const daysOld = issueAge / (1000 * 60 * 60 * 24);
+  if (daysOld < 7) {
+    complexityScore -= 5;
+  }
+
+  if (
+    !isRecommended &&
+    complexityScore < 40 &&
+    !isComplex &&
+    (isDocumentation || bodyLength < 300 || hasBeginnerLabel)
+  ) {
+    isRecommended = true;
+    recommendationReason = "Good starter issue";
+  }
+
+  return {
+    ...issue,
+    complexityScore: Math.max(0, Math.min(100, complexityScore)),
+    isRecommended,
+    recommendationReason,
+  };
 };
 
-export const getClassifiedIssues = async (owner: string, repo: string) => {
+export const getEnrichedIssues = async (owner: string, repo: string) => {
   const issues = await getIssues(owner, repo);
-  return issues.map(classifyIssue);
-};
+  const enriched = issues.map(analyzeIssueComplexity);
 
-export const getEasyIssues = async (owner: string, repo: string) => {
-  const classified = await getClassifiedIssues(owner, repo);
-  return classified.filter((i) => i.difficulty === "easy");
+  return enriched.sort((a, b) => {
+    if (a.isRecommended && !b.isRecommended) return -1;
+    if (!a.isRecommended && b.isRecommended) return 1;
+    return a.complexityScore - b.complexityScore;
+  });
 };

@@ -73,7 +73,7 @@ export default function Home() {
             className="text-center space-y-4"
           >
             <h1 className="text-5xl font-bold tracking-tight text-foreground">
-              GitHub Issue Solver
+              Clove
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Index any public GitHub repository and get AI-powered solutions

@@ -7,23 +7,29 @@ export interface Issue {
   title: string;
   body: string | null;
   state: string;
-  labels: Array<{ name: string }>;
+  labels: Array<{
+    name: string;
+    color: string;
+    description?: string;
+  }>;
   created_at: string;
   html_url: string;
   comments: number;
-  difficulty?: "easy" | "medium" | "hard";
+  complexityScore?: number;
+  isRecommended?: boolean;
+  recommendationReason?: string;
 }
 
 export function useIssues(
   repoUrl: string | null,
-  difficulty?: "easy" | "medium" | "hard"
+  filter?: "all" | "recommended"
 ) {
   return useQuery({
-    queryKey: ["issues", repoUrl, difficulty],
+    queryKey: ["issues", repoUrl, filter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (repoUrl) params.set("repoUrl", repoUrl);
-      if (difficulty) params.set("difficulty", difficulty);
+      if (filter && filter !== "all") params.set("filter", filter);
 
       const res = await fetch(`/api/repository/issues?${params}`);
       if (!res.ok) throw new Error("Failed to fetch issues");

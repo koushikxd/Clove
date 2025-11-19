@@ -14,7 +14,7 @@ import { ChatHeader } from "./chat-header";
 import type { Issue } from "@/lib/hooks/use-issues";
 import { toast } from "sonner";
 import { motion } from "motion/react";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot, Loader2, Sparkles } from "lucide-react";
 
 export const ChatInterface = () => {
   const searchParams = useSearchParams();
@@ -59,18 +59,11 @@ export const ChatInterface = () => {
       }
 
       if (
-        lowerMessage.includes("easy") ||
-        lowerMessage.includes("medium") ||
-        lowerMessage.includes("hard")
+        lowerMessage.includes("recommended") ||
+        lowerMessage.includes("beginner")
       ) {
-        const difficulty = lowerMessage.includes("easy")
-          ? "easy"
-          : lowerMessage.includes("medium")
-          ? "medium"
-          : "hard";
-
         try {
-          await fetchIssues(difficulty);
+          await fetchIssues("recommended");
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Failed to fetch issues";
@@ -86,7 +79,7 @@ export const ChatInterface = () => {
         lowerMessage.includes("issues")
       ) {
         try {
-          await fetchIssues();
+          await fetchIssues("all");
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Failed to fetch issues";
@@ -98,7 +91,7 @@ export const ChatInterface = () => {
 
       await addMessage(
         "assistant",
-        `I can help you with **${currentRepo.name}**:\n\n• Find issues by difficulty (say 'easy', 'medium', or 'hard')\n• Show all issues (say 'show issues')\n• Generate solutions for specific issues\n\nWhat would you like to do?`
+        `I can help you with **${currentRepo.name}**:\n\n• Show all issues (say 'show issues')\n• Find recommended issues for beginners (say 'recommended')\n• Generate solutions for specific issues\n\nWhat would you like to do?`
       );
     },
     [addMessage, currentRepo, fetchIssues]
@@ -147,26 +140,25 @@ export const ChatInterface = () => {
     [chatId, isChatLoading, currentRepo]
   );
 
-  const difficultyButtons = useMemo(
+  const actionButtons = useMemo(
     () => (
-      <div className="flex gap-2 justify-center mt-4">
+      <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6 px-4">
         <button
-          onClick={() => handleSubmit("easy")}
-          className="px-4 py-2 bg-green-500/10 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-500/20 transition-colors text-sm font-medium"
+          onClick={() => handleSubmit("show all issues")}
+          className="px-6 py-3 bg-muted/50 hover:bg-muted text-foreground border border-border rounded-lg transition-all text-sm font-medium hover:shadow-md group cursor-pointer"
         >
-          Easy Issues
+          <span className="flex items-center justify-center gap-2">
+            Show All Issues
+          </span>
         </button>
         <button
-          onClick={() => handleSubmit("medium")}
-          className="px-4 py-2 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-lg hover:bg-yellow-500/20 transition-colors text-sm font-medium"
+          onClick={() => handleSubmit("recommended")}
+          className="px-6 py-3 bg-muted/50 hover:bg-muted text-foreground border border-border rounded-lg transition-all text-sm font-medium hover:shadow-md group cursor-pointer"
         >
-          Medium Issues
-        </button>
-        <button
-          onClick={() => handleSubmit("hard")}
-          className="px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-500/20 transition-colors text-sm font-medium"
-        >
-          Hard Issues
+          <span className="flex items-center justify-center gap-2">
+            <Sparkles className="h-4 w-4 group-hover:animate-pulse" />
+            Recommended
+          </span>
         </button>
       </div>
     ),
@@ -188,13 +180,14 @@ export const ChatInterface = () => {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
                 <Bot className="h-8 w-8 text-primary" />
               </div>
-              <h1 className="text-4xl font-bold mb-4 text-foreground">
+              <h1 className="text-4xl font-bold mb-3 text-foreground">
                 Working on {currentRepo.name}
               </h1>
-              <p className="text-lg text-muted-foreground mb-2">
-                Ask me to find issues by difficulty or show all issues
+              <p className="text-base text-muted-foreground max-w-xl mx-auto">
+                Ready to help you find and solve issues. Choose to see all
+                issues or get personalized recommendations for your skill level.
               </p>
-              {difficultyButtons}
+              {actionButtons}
             </motion.div>
           )}
 
