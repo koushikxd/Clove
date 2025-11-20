@@ -43,7 +43,7 @@ import { useState } from "react";
 import { ChatList } from "./chat/chat-list";
 
 const AppSidebarLoadingSkeleton = () => (
-  <SidebarGroup className="p-0 px-3 pb-2">
+  <SidebarGroup className="p-2 px-3 pb-2">
     <SidebarGroupLabel className="text-xs text-muted-foreground font-medium px-0 pl-1 h-fit">
       Repositories
     </SidebarGroupLabel>
@@ -122,7 +122,7 @@ export const AppSidebar = () => {
 
       <SidebarContent
         className={
-          isLoading || !repositories || repositories.length === 0
+          !isLoading && (!repositories || repositories.length === 0)
             ? "flex items-center justify-center"
             : "gap-0"
         }
@@ -150,11 +150,11 @@ export const AppSidebar = () => {
                         <CollapsibleTrigger asChild>
                           <Button
                             variant="ghost"
-                            className="w-full justify-start px-2 py-2 h-auto hover:bg-accent pr-20"
+                            className="w-full justify-start px-2 py-2 h-auto hover:bg-accent pr-20 cursor-pointer"
                           >
                             <ChevronRight
                               className={`h-4 w-4 mr-1 shrink-0 transition-transform ${
-                                isExpanded ? "transform rotate-90" : ""
+                                isExpanded && "transform rotate-90"
                               }`}
                             />
                             <div className="flex-1 text-left min-w-0">
@@ -188,7 +188,7 @@ export const AppSidebar = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 hover:bg-accent"
+                            className="h-7 w-7 hover:bg-accent cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleCreateChat(repo.id, repo.name);
@@ -200,7 +200,7 @@ export const AppSidebar = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+                            className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
                               setDeleteRepoId(repo.id);
