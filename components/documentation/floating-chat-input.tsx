@@ -41,10 +41,10 @@ export function FloatingChatInput({ repositoryId }: FloatingChatInputProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="absolute bottom-0 left-0 right-0 z-50 pb-6 pt-4 px-4 bg-linear-to-t from-background via-background to-transparent"
+      className="absolute bottom-0 left-0 right-0 z-50 pt-4 px-4 bg-linear-to-t from-background via-background to-transparent"
     >
       <div className="mx-auto max-w-3xl">
-        <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-lg p-1">
+        <div className="bg-background/80 backdrop-blur-xl rounded-2xl shadow-lg">
           <AiInput
             onSubmit={handleSubmit}
             disabled={isSubmitting}

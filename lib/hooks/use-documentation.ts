@@ -22,6 +22,7 @@ interface Dependencies {
 
 interface DependencyInfo {
   type: string;
+  path: string;
   dependencies: Dependencies;
   devDependencies?: Dependencies;
 }
@@ -77,4 +78,3 @@ export function useDocumentation(repositoryId: string) {
     staleTime: 5 * 60 * 1000,
   });
 }
-

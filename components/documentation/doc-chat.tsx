@@ -36,7 +36,8 @@ export function DocChat({ messages, onSendMessage, isLoading }: DocChatProps) {
             <div className="space-y-2">
               <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto" />
               <p className="text-sm text-muted-foreground">
-                Ask questions about this repository's documentation and codebase
+                Ask questions about this repository&apos;s documentation and
+                codebase
               </p>
             </div>
           </div>
@@ -49,8 +50,11 @@ export function DocChat({ messages, onSendMessage, isLoading }: DocChatProps) {
         )}
       </ScrollArea>
 
-      <AiInput onSubmit={onSendMessage} disabled={isLoading} />
+      <AiInput
+        onSubmit={onSendMessage}
+        disabled={isLoading}
+        className="mx-auto max-w-[780px]"
+      />
     </Card>
   );
 }
-

@@ -91,7 +91,7 @@ export function AiInput({ onSubmit, disabled, className }: AiInputProps = {}) {
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="relative w-full pb-4">
+      <div className="relative w-full">
         <div className="relative rounded-2xl border border-border flex flex-col">
           <div
             className="overflow-y-auto"

@@ -308,7 +308,7 @@ export const ChatInterface = () => {
       <AiInput
         onSubmit={handleSubmit}
         disabled={state === "indexing" || state === "generating-solution"}
-        className="mx-auto max-w-[870px]"
+        className="mx-auto max-w-[780px]"
       />
     </div>
   );
