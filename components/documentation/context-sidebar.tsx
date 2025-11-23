@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MetadataCard } from "./metadata-card";
 import { FolderTree } from "./folder-tree";
 import { DependencyTable } from "./dependency-table";
-import { FileText, Folder, Box, Info } from "lucide-react";
+import { FileText, Folder, Box, Info, LucideIcon } from "lucide-react";
 
 interface FolderNode {
   name: string;
@@ -27,6 +27,7 @@ interface Dependencies {
 
 interface DependencyInfo {
   type: string;
+  path: string;
   dependencies: Dependencies;
   devDependencies?: Dependencies;
 }
@@ -54,6 +55,35 @@ interface ContextSidebarProps {
   dependencies: DependencyInfo[];
 }
 
+interface Tab {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+const TABS: Tab[] = [
+  {
+    id: "guide",
+    label: "Guide",
+    icon: FileText,
+  },
+  {
+    id: "info",
+    label: "Info",
+    icon: Info,
+  },
+  {
+    id: "files",
+    label: "Files",
+    icon: Folder,
+  },
+  {
+    id: "deps",
+    label: "Deps",
+    icon: Box,
+  },
+] as const;
+
 export function ContextSidebar({
   sections,
   activeSection,
@@ -67,34 +97,16 @@ export function ContextSidebar({
       <Tabs defaultValue="guide" className="flex flex-col h-full">
         <div className="p-4 pb-0 border-b border-border bg-muted/30">
           <TabsList className="w-full grid grid-cols-4 gap-1 bg-transparent p-0 h-auto">
-            <TabsTrigger
-              value="guide"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm py-2 text-xs flex flex-col gap-1 h-auto"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Guide</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="info"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm py-2 text-xs flex flex-col gap-1 h-auto"
-            >
-              <Info className="h-4 w-4" />
-              <span>Info</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="files"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm py-2 text-xs flex flex-col gap-1 h-auto"
-            >
-              <Folder className="h-4 w-4" />
-              <span>Files</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="deps"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm py-2 text-xs flex flex-col gap-1 h-auto"
-            >
-              <Box className="h-4 w-4" />
-              <span>Deps</span>
-            </TabsTrigger>
+            {TABS.map((tab) => (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm py-2 text-xs flex flex-col gap-1 h-auto cursor-pointer data-[state=active]:border-b-0 data-[state=active]:rounded-br-none data-[state=active]:rounded-bl-none"
+              >
+                <tab.icon className="h-4 w-4" />
+                <span>{tab.label}</span>
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
 

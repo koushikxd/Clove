@@ -1,5 +1,5 @@
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { getRepository, parseRepoUrl } from "./client";
 
 interface FolderNode {
@@ -22,6 +22,7 @@ interface Dependencies {
 
 interface DependencyInfo {
   type: string;
+  path: string; // Relative path to the dependency file
   dependencies: Dependencies;
   devDependencies?: Dependencies;
 }
@@ -46,6 +47,23 @@ interface DocumentationData {
   dependencies: DependencyInfo[];
   metadata: GitHubMetadata;
 }
+
+const IGNORED_DIRS = [
+  "node_modules",
+  ".git",
+  ".next",
+  "dist",
+  "build",
+  ".turbo",
+  "coverage",
+  ".cache",
+  "vendor",
+  "__pycache__",
+  ".pytest_cache",
+  ".venv",
+  "venv",
+  "target",
+];
 
 export async function extractReadme(repoPath: string): Promise<string | null> {
   const possibleNames = ["README.md", "readme.md", "Readme.md", "README.MD"];
@@ -113,23 +131,6 @@ async function buildFolderTree(
   const entries = await readdir(dirPath);
   const children: FolderNode[] = [];
 
-  const ignoredDirs = [
-    "node_modules",
-    ".git",
-    ".next",
-    "dist",
-    "build",
-    ".turbo",
-    "coverage",
-    ".cache",
-    "vendor",
-    "__pycache__",
-    ".pytest_cache",
-    ".venv",
-    "venv",
-    "target",
-  ];
-
   for (const entry of entries) {
     if (
       entry.startsWith(".") &&
@@ -139,7 +140,7 @@ async function buildFolderTree(
       continue;
     }
 
-    if (ignoredDirs.includes(entry)) {
+    if (IGNORED_DIRS.includes(entry)) {
       continue;
     }
 
@@ -190,109 +191,162 @@ export async function extractFolderStructure(
   return buildFolderTree(repoPath);
 }
 
+async function findFiles(
+  dir: string,
+  filename: string,
+  maxDepth: number = 4
+): Promise<string[]> {
+  const results: string[] = [];
+
+  async function scan(currentDir: string, depth: number) {
+    if (depth > maxDepth) return;
+
+    try {
+      const entries = await readdir(currentDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = join(currentDir, entry.name);
+
+        if (entry.isDirectory()) {
+          if (
+            !IGNORED_DIRS.includes(entry.name) &&
+            !entry.name.startsWith(".")
+          ) {
+            await scan(fullPath, depth + 1);
+          }
+        } else if (entry.name.toLowerCase() === filename.toLowerCase()) {
+          results.push(fullPath);
+        }
+      }
+    } catch (error) {
+      console.error(`Error scanning directory ${currentDir}:`, error);
+    }
+  }
+
+  await scan(dir, 0);
+  return results;
+}
+
 export async function extractDependencies(
   repoPath: string
 ): Promise<DependencyInfo[]> {
   const dependencyFiles: DependencyInfo[] = [];
 
-  try {
-    const packageJson = await readFile(join(repoPath, "package.json"), "utf-8");
-    const pkg = JSON.parse(packageJson);
-    const deps = pkg.dependencies || {};
-    const devDeps = pkg.devDependencies || {};
+  // NPM (package.json)
+  const packageJsonFiles = await findFiles(repoPath, "package.json");
+  for (const file of packageJsonFiles) {
+    try {
+      const content = await readFile(file, "utf-8");
+      const pkg = JSON.parse(content);
+      const deps = pkg.dependencies || {};
+      const devDeps = pkg.devDependencies || {};
 
-    if (Object.keys(deps).length > 0 || Object.keys(devDeps).length > 0) {
-      dependencyFiles.push({
-        type: "npm",
-        dependencies: deps,
-        devDependencies: devDeps,
-      });
+      if (Object.keys(deps).length > 0 || Object.keys(devDeps).length > 0) {
+        dependencyFiles.push({
+          type: "npm",
+          path: relative(repoPath, file),
+          dependencies: deps,
+          devDependencies: devDeps,
+        });
+      }
+    } catch {
+      // Ignore parse errors
     }
-  } catch (error) {
-    console.error(`Failed to extract package.json from ${repoPath}:`, error);
   }
 
-  try {
-    const requirementsTxt = await readFile(
-      join(repoPath, "requirements.txt"),
-      "utf-8"
-    );
-    const deps: Dependencies = {};
-    requirementsTxt.split("\n").forEach((line) => {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith("#")) {
-        const [name, version] = trimmed.split(/==|>=|<=|~=|>|</);
-        if (name) {
-          deps[name.trim()] = version?.trim() || "*";
+  // Python (requirements.txt)
+  const requirementsFiles = await findFiles(repoPath, "requirements.txt");
+  for (const file of requirementsFiles) {
+    try {
+      const content = await readFile(file, "utf-8");
+      const deps: Dependencies = {};
+      content.split("\n").forEach((line) => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith("#")) {
+          const [name, version] = trimmed.split(/==|>=|<=|~=|>|</);
+          if (name) {
+            deps[name.trim()] = version?.trim() || "*";
+          }
+        }
+      });
+
+      if (Object.keys(deps).length > 0) {
+        dependencyFiles.push({
+          type: "pip",
+          path: relative(repoPath, file),
+          dependencies: deps,
+        });
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  // Rust (Cargo.toml)
+  const cargoFiles = await findFiles(repoPath, "Cargo.toml");
+  for (const file of cargoFiles) {
+    try {
+      const content = await readFile(file, "utf-8");
+      const deps: Dependencies = {};
+      const depSection = content.match(/\[dependencies\]([\s\S]*?)(\[|$)/);
+      if (depSection) {
+        const lines = depSection[1].split("\n");
+        for (const line of lines) {
+          const match = line.match(/^(\w+)\s*=\s*"([^"]+)"/);
+          if (match) {
+            deps[match[1]] = match[2];
+          }
         }
       }
-    });
-    if (Object.keys(deps).length > 0) {
-      dependencyFiles.push({
-        type: "pip",
-        dependencies: deps,
-      });
+
+      if (Object.keys(deps).length > 0) {
+        dependencyFiles.push({
+          type: "cargo",
+          path: relative(repoPath, file),
+          dependencies: deps,
+        });
+      }
+    } catch {
+      // Ignore errors
     }
-  } catch (error) {
-    console.error(
-      `Failed to extract requirements.txt from ${repoPath}:`,
-      error
-    );
   }
 
-  try {
-    const cargoToml = await readFile(join(repoPath, "Cargo.toml"), "utf-8");
-    const deps: Dependencies = {};
-    const depSection = cargoToml.match(/\[dependencies\]([\s\S]*?)(\[|$)/);
-    if (depSection) {
-      const lines = depSection[1].split("\n");
+  // Go (go.mod)
+  const goModFiles = await findFiles(repoPath, "go.mod");
+  for (const file of goModFiles) {
+    try {
+      const content = await readFile(file, "utf-8");
+      const deps: Dependencies = {};
+      const lines = content.split("\n");
+      let inRequire = false;
       for (const line of lines) {
-        const match = line.match(/^(\w+)\s*=\s*"([^"]+)"/);
-        if (match) {
-          deps[match[1]] = match[2];
+        const trimmed = line.trim();
+        if (trimmed.startsWith("require (")) {
+          inRequire = true;
+          continue;
+        }
+        if (trimmed === ")") {
+          inRequire = false;
+          continue;
+        }
+        if (inRequire || trimmed.startsWith("require ")) {
+          const match = trimmed.match(/^(?:require\s+)?(\S+)\s+(\S+)/);
+          if (match) {
+            deps[match[1]] = match[2];
+          }
         }
       }
-    }
-    if (Object.keys(deps).length > 0) {
-      dependencyFiles.push({
-        type: "cargo",
-        dependencies: deps,
-      });
-    }
-  } catch (error) {
-    console.error(`Failed to extract Cargo.toml from ${repoPath}:`, error);
-  }
 
-  try {
-    const goMod = await readFile(join(repoPath, "go.mod"), "utf-8");
-    const deps: Dependencies = {};
-    const lines = goMod.split("\n");
-    let inRequire = false;
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith("require (")) {
-        inRequire = true;
-        continue;
+      if (Object.keys(deps).length > 0) {
+        dependencyFiles.push({
+          type: "go",
+          path: relative(repoPath, file),
+          dependencies: deps,
+        });
       }
-      if (trimmed === ")") {
-        inRequire = false;
-        continue;
-      }
-      if (inRequire || trimmed.startsWith("require ")) {
-        const match = trimmed.match(/^(?:require\s+)?(\S+)\s+(\S+)/);
-        if (match) {
-          deps[match[1]] = match[2];
-        }
-      }
+    } catch {
+      // Ignore errors
     }
-    if (Object.keys(deps).length > 0) {
-      dependencyFiles.push({
-        type: "go",
-        dependencies: deps,
-      });
-    }
-  } catch (error) {
-    console.error(`Failed to extract go.mod from ${repoPath}:`, error);
   }
 
   return dependencyFiles;

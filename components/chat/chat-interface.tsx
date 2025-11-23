@@ -21,6 +21,7 @@ export const ChatInterface = () => {
   const chatId = searchParams.get("chatId");
   const initialMessage = searchParams.get("message");
   const processedInitialMessage = useRef(false);
+  const initialMessageRef = useRef<string | null>(null);
 
   const {
     messages,
@@ -30,6 +31,7 @@ export const ChatInterface = () => {
     addMessage,
     fetchIssues,
     generateSolution,
+    chatWithCodebase,
   } = useChat({ chatId });
 
   const { isLoading: isChatLoading } = useChatData(chatId);
@@ -46,11 +48,10 @@ export const ChatInterface = () => {
 
   const handleSubmit = useCallback(
     async (message: string) => {
-      await addMessage("user", message);
-
       const lowerMessage = message.toLowerCase();
 
       if (!currentRepo) {
+        await addMessage("user", message);
         await addMessage(
           "assistant",
           "Please go to the home page to index a GitHub repository first. Once indexed, you can ask me to find issues or generate solutions."
@@ -62,6 +63,7 @@ export const ChatInterface = () => {
         lowerMessage.includes("recommended") ||
         lowerMessage.includes("beginner")
       ) {
+        await addMessage("user", message);
         try {
           await fetchIssues("recommended");
         } catch (error) {
@@ -78,6 +80,7 @@ export const ChatInterface = () => {
         lowerMessage.includes("show issues") ||
         lowerMessage.includes("issues")
       ) {
+        await addMessage("user", message);
         try {
           await fetchIssues("all");
         } catch (error) {
@@ -89,20 +92,44 @@ export const ChatInterface = () => {
         return;
       }
 
-      await addMessage(
-        "assistant",
-        `I can help you with **${currentRepo.name}**:\n\n• Show all issues (say 'show issues')\n• Find recommended issues for beginners (say 'recommended')\n• Generate solutions for specific issues\n\nWhat would you like to do?`
-      );
+      try {
+        await addMessage("user", message);
+        if (chatId) {
+          updateChatTitle.mutate({
+            chatId,
+            title: message.slice(0, 50),
+          });
+        }
+        await chatWithCodebase(message);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to get response";
+        toast.error(errorMessage);
+        await addMessage("assistant", `❌ ${errorMessage}`);
+      }
     },
-    [addMessage, currentRepo, fetchIssues]
+    [
+      addMessage,
+      currentRepo,
+      fetchIssues,
+      chatWithCodebase,
+      chatId,
+      updateChatTitle,
+    ]
   );
 
   useEffect(() => {
-    if (initialMessage && !processedInitialMessage.current) {
+    if (
+      initialMessage &&
+      currentRepo &&
+      !processedInitialMessage.current &&
+      initialMessageRef.current !== initialMessage
+    ) {
       processedInitialMessage.current = true;
+      initialMessageRef.current = initialMessage;
       handleSubmit(initialMessage);
     }
-  }, [initialMessage, handleSubmit]);
+  }, [initialMessage, currentRepo, handleSubmit]);
 
   const handleIssueSelect = useCallback(
     async (issue: Issue) => {

@@ -6,6 +6,7 @@ interface Dependencies {
 
 interface DependencyInfo {
   type: string;
+  path: string;
   dependencies: Dependencies;
   devDependencies?: Dependencies;
 }
@@ -41,19 +42,26 @@ export function DependencyTable({ dependencies }: DependencyTableProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {dependencies.map((depInfo, idx) => (
-        <div key={idx} className="space-y-3">
-          <div className="flex items-center gap-2 pb-2 border-b border-border/50">
-            <Badge
-              className={typeColors[depInfo.type] || "bg-muted"}
-              variant="outline"
-            >
-              {typeLabels[depInfo.type] || depInfo.type}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {Object.keys(depInfo.dependencies).length} packages
-            </span>
+        <div key={`${depInfo.path}-${idx}`} className="space-y-3">
+          <div className="flex flex-col gap-1 pb-2 border-b border-border/50">
+            <div className="flex items-center gap-2 justify-between">
+              <div className="flex items-center gap-2">
+                <Badge
+                  className={typeColors[depInfo.type] || "bg-muted"}
+                  variant="outline"
+                >
+                  {typeLabels[depInfo.type] || depInfo.type}
+                </Badge>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {depInfo.path}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {Object.keys(depInfo.dependencies).length} packages
+              </span>
+            </div>
           </div>
 
           <div className="space-y-1">

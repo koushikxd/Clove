@@ -513,6 +513,130 @@ export const useChat = (options: UseChatOptions = {}) => {
     [currentRepo, activeChatId, saveMessage]
   );
 
+  const chatWithCodebase = useCallback(
+    async (message: string, onChunk?: (chunk: string) => void) => {
+      if (!currentRepo) {
+        throw new Error("No repository selected");
+      }
+
+      setState("generating-solution");
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const streamingMessageId = nanoid();
+      const loadingMessage: ChatMessage = {
+        id: streamingMessageId,
+        type: "assistant",
+        content: "",
+        timestamp: new Date(),
+        loading: true,
+      };
+      setMessages((prev) => [...prev, loadingMessage]);
+
+      try {
+        const response = await fetch("/api/ai/documentation-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message,
+            repositoryId: currentRepo.id,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to get response");
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+
+        if (!reader) throw new Error("No response body");
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          fullText += chunk;
+
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIndex = updated.length - 1;
+            if (
+              lastIndex >= 0 &&
+              updated[lastIndex].id === streamingMessageId
+            ) {
+              updated[lastIndex] = {
+                id: streamingMessageId,
+                type: "assistant",
+                content: fullText,
+                timestamp: updated[lastIndex].timestamp,
+                streaming: true,
+                loading: false,
+              };
+            }
+            return updated;
+          });
+
+          onChunk?.(chunk);
+        }
+
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          if (lastIndex >= 0 && updated[lastIndex].id === streamingMessageId) {
+            updated[lastIndex] = {
+              id: streamingMessageId,
+              type: "assistant",
+              content: fullText,
+              timestamp: updated[lastIndex].timestamp,
+              streaming: false,
+              loading: false,
+            };
+          }
+          return updated;
+        });
+
+        if (activeChatId) {
+          optimisticMessageIds.current.add(streamingMessageId);
+          try {
+            await saveMessage.mutateAsync({
+              id: streamingMessageId,
+              chatId: activeChatId,
+              role: "assistant",
+              content: fullText,
+              metadata: null,
+            });
+            optimisticMessageIds.current.delete(streamingMessageId);
+          } catch (error) {
+            optimisticMessageIds.current.delete(streamingMessageId);
+            throw error;
+          }
+        }
+
+        setState("idle");
+        return fullText;
+      } catch (error) {
+        setState("idle");
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          if (lastIndex >= 0 && updated[lastIndex].id === streamingMessageId) {
+            updated[lastIndex] = {
+              ...updated[lastIndex],
+              streaming: false,
+              loading: false,
+            };
+          }
+          return updated;
+        });
+        throw error;
+      }
+    },
+    [currentRepo, activeChatId, saveMessage]
+  );
+
   const setChat = useCallback((chatId: string | null) => {
     setActiveChatId(chatId);
     isLoadingRef.current = false;
@@ -533,6 +657,7 @@ export const useChat = (options: UseChatOptions = {}) => {
       indexRepository,
       fetchIssues,
       generateSolution,
+      chatWithCodebase,
       setChat,
     }),
     [
@@ -547,6 +672,7 @@ export const useChat = (options: UseChatOptions = {}) => {
       indexRepository,
       fetchIssues,
       generateSolution,
+      chatWithCodebase,
       setChat,
     ]
   );
