@@ -15,6 +15,20 @@
       "when": 1763041595374,
       "tag": "0001_yummy_proemial_gods",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763885851424,
+      "tag": "0002_sad_raza",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1763886895561,
+      "tag": "0003_huge_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,7 @@ export const repositoriesTable = pgTable("repositories", {
   language: varchar({ length: 100 }),
   chunksIndexed: integer().notNull().default(0),
   status: varchar({ length: 50 }).notNull().default("indexed"),
+  repoPath: varchar({ length: 500 }),
   indexedAt: timestamp().notNull().defaultNow(),
   createdAt: timestamp().notNull().defaultNow(),
 });

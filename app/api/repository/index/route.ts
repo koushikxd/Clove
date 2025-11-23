@@ -3,7 +3,6 @@ import { cloneRepository } from "@/lib/indexing/codebase";
 import { indexRepository } from "@/lib/rag";
 import { getRepository, parseRepoUrl } from "@/lib/github/client";
 import { nanoid } from "nanoid";
-import { rm } from "node:fs/promises";
 import db from "@/lib/db";
 import { repositoriesTable } from "@/lib/db/schema";
 
@@ -23,12 +22,6 @@ export async function POST(req: NextRequest) {
 
     const { repoPath } = await cloneRepository(repoUrl, branch);
     const repositoryId = nanoid();
-
-    const cleanup = async () => {
-      await rm(repoPath, { recursive: true, force: true }).catch((error) =>
-        console.warn(`Failed to cleanup ${repoPath}:`, error)
-      );
-    };
 
     try {
       const vectorIds = await indexRepository({
@@ -51,9 +44,8 @@ export async function POST(req: NextRequest) {
         language: repoData.language || null,
         chunksIndexed: vectorIds.length,
         status: "indexed",
+        repoPath,
       });
-
-      await cleanup();
 
       return NextResponse.json({
         success: true,
@@ -67,7 +59,6 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch (error) {
-      await cleanup();
       console.error("Indexing error:", error);
       throw error;
     }

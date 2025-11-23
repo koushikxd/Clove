@@ -13,6 +13,7 @@ interface Repository {
   language: string | null;
   chunksIndexed: number;
   status: string;
+  repoPath: string | null;
   indexedAt: string;
   createdAt: string;
 }

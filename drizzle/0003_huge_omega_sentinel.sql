@@ -1,0 +1,1 @@
+ALTER TABLE "repositories" ADD COLUMN "repoPath" varchar(500);

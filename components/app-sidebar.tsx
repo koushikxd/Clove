@@ -146,17 +146,32 @@ export const AppSidebar = () => {
                     onOpenChange={() => toggleRepo(repo.id)}
                   >
                     <div className="space-y-1">
-                      <div className="group relative">
+                      <div className="group relative flex items-stretch">
                         <CollapsibleTrigger asChild>
                           <Button
                             variant="ghost"
-                            className="w-full justify-start px-2 py-2 h-auto hover:bg-accent pr-20 cursor-pointer"
+                            size="icon"
+                            className="h-auto w-8 shrink-0 rounded-r-none hover:bg-accent cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
                           >
                             <ChevronRight
-                              className={`h-4 w-4 mr-1 shrink-0 transition-transform ${
+                              className={`h-4 w-4 shrink-0 transition-transform ${
                                 isExpanded && "transform rotate-90"
                               }`}
                             />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <Link
+                          href={`/repository/${repo.id}/docs`}
+                          className="flex-1 min-w-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start px-2 py-2 h-auto hover:bg-accent pr-20 cursor-pointer rounded-l-none"
+                          >
                             <div className="flex-1 text-left min-w-0">
                               <div className="flex items-center gap-2 w-full">
                                 <GitBranch className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -183,8 +198,8 @@ export const AppSidebar = () => {
                               </div>
                             </div>
                           </Button>
-                        </CollapsibleTrigger>
-                        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        </Link>
+                        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                           <Button
                             variant="ghost"
                             size="icon"
