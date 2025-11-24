@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDocumentation } from "@/lib/hooks/use-documentation";
 import { ContextSidebar } from "@/components/documentation/context-sidebar";
 import { FloatingChatInput } from "@/components/documentation/floating-chat-input";
@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { Streamdown } from "streamdown";
+import { useSidebar } from "@/components/ui/sidebar";
 
 export default function RepositoryDocsPage({
   params,
@@ -17,8 +18,16 @@ export default function RepositoryDocsPage({
   params: Promise<{ id: string }>;
 }) {
   const unwrappedParams = React.use(params);
+  const { state, setOpen } = useSidebar();
   const { data, isLoading, error } = useDocumentation(unwrappedParams.id);
   const [activeSection, setActiveSection] = useState("readme");
+
+  useEffect(() => {
+    if (state === "expanded") setOpen(false);
+    return () => {
+      if (state === "expanded") setOpen(true);
+    };
+  }, [state, setOpen]);
 
   if (isLoading) {
     return (
