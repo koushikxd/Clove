@@ -8,7 +8,14 @@
  * @module
  */
 
+import type * as appUsers from "../appUsers.js";
+import type * as candidates from "../candidates.js";
+import type * as events from "../events.js";
 import type * as http from "../http.js";
+import type * as jobs from "../jobs.js";
+import type * as lib_auth from "../lib/auth.js";
+import type * as lib_types from "../lib/types.js";
+import type * as sourcing from "../sourcing.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +24,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  appUsers: typeof appUsers;
+  candidates: typeof candidates;
+  events: typeof events;
   http: typeof http;
+  jobs: typeof jobs;
+  "lib/auth": typeof lib_auth;
+  "lib/types": typeof lib_types;
+  sourcing: typeof sourcing;
 }>;
 
 /**

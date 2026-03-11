@@ -47,6 +47,7 @@ Fill in the following keys in `.env.local`:
 | Variable         | Where to get it                                                  |
 | ---------------- | ---------------------------------------------------------------- |
 | `RESEND_API_KEY` | [Resend dashboard](https://resend.com/api-keys) > Create API key |
+| `EMAIL_ADDRESS`  | The inbox that should receive demo invite emails                 |
 
 ### Candidate sourcing (Exa)
 
@@ -56,12 +57,18 @@ Fill in the following keys in `.env.local`:
 
 ### Inngest
 
-Not needed for local dev (the Docker container handles it). For production:
-
 | Variable              | Where to get it                                                    |
 | --------------------- | ------------------------------------------------------------------ |
+| `INNGEST_DEVSERVER_URL` | `http://127.0.0.1:8288` for local docker dev server             |
+| `INNGEST_BASE_URL`    | Optional custom Inngest base URL                                   |
 | `INNGEST_EVENT_KEY`   | [Inngest dashboard](https://app.inngest.com/) > Environment > Keys |
 | `INNGEST_SIGNING_KEY` | Inngest dashboard > Environment > Signing Key                      |
+
+### Internal workflow bridge
+
+| Variable          | Where to get it                               |
+| ----------------- | --------------------------------------------- |
+| `WORKFLOW_SECRET` | Generate: `openssl rand -base64 32`           |
 
 ## 3. Start services
 
@@ -103,6 +110,7 @@ API keys used by Convex server-side actions (Resend, Exa, Gemini) must also be s
 bunx convex env set GOOGLE_GENERATIVE_AI_API_KEY <your-key>
 bunx convex env set RESEND_API_KEY <your-key>
 bunx convex env set EXA_API_KEY <your-key>
+bunx convex env set WORKFLOW_SECRET <your-secret>
 ```
 
 ## Troubleshooting

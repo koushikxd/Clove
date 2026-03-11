@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,7 +18,11 @@ import { authClient } from "@/lib/auth-client"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState("")
+  const searchParams = useSearchParams()
+  const defaultRole =
+    searchParams.get("role") === "candidate" ? "candidate" : "recruiter"
+  const [role, setRole] = useState<"recruiter" | "candidate">(defaultRole)
+  const [email, setEmail] = useState(searchParams.get("email") ?? "")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -40,7 +44,13 @@ export default function LoginPage() {
       return
     }
 
-    router.push("/")
+    const params = new URLSearchParams({ role, email })
+    const invite = searchParams.get("invite")
+    if (invite) {
+      params.set("invite", invite)
+    }
+
+    router.push(`/auth/complete?${params.toString()}`)
   }
 
   return (
@@ -54,6 +64,20 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="role">I am a</Label>
+              <select
+                id="role"
+                className="h-9 rounded-md border bg-transparent px-3 text-sm"
+                value={role}
+                onChange={(event) =>
+                  setRole(event.target.value as "recruiter" | "candidate")
+                }
+              >
+                <option value="recruiter">Recruiter</option>
+                <option value="candidate">Candidate</option>
+              </select>
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -87,7 +111,7 @@ export default function LoginPage() {
             <p className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
-                href="/signup"
+                href={`/signup?role=${role}${email ? `&email=${encodeURIComponent(email)}` : ""}${searchParams.get("invite") ? `&invite=${searchParams.get("invite")}` : ""}`}
                 className="font-medium text-foreground underline-offset-4 hover:underline"
               >
                 Sign up
