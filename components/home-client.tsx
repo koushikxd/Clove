@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import { triggerJobCreatedAction, sendDemoInviteAction } from "@/app/actions"
+import { triggerJobCreatedAction } from "@/app/actions"
 import { authClient } from "@/lib/auth-client"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,12 +20,22 @@ export function HomeClient() {
   const router = useRouter()
   const session = authClient.useSession()
   const viewer = useQuery(api.appUsers.getViewer, session.data ? {} : "skip")
+  const candidateHomeState = useQuery(
+    api.interviews.getCandidateHomeState,
+    session.data && viewer?.appUser.role === "candidate" ? {} : "skip"
+  )
 
   useEffect(() => {
     if (viewer?.appUser?.onboardingStatus === "pending") {
       router.replace("/onboarding")
     }
   }, [router, viewer?.appUser?.onboardingStatus])
+
+  useEffect(() => {
+    if (viewer?.appUser.role === "candidate" && candidateHomeState?.inviteToken) {
+      router.replace(`/interview/${candidateHomeState.inviteToken}`)
+    }
+  }, [candidateHomeState?.inviteToken, router, viewer?.appUser.role])
 
   if (session.isPending || (session.data && viewer === undefined)) {
     return (
@@ -102,7 +112,6 @@ function RecruiterDashboard() {
   const jobs = useQuery(api.jobs.listForRecruiter, {})
   const createJob = useMutation(api.jobs.create)
   const [isCreating, startCreateTransition] = useTransition()
-  const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [form, setForm] = useState({
     title: "",
@@ -156,19 +165,6 @@ function RecruiterDashboard() {
     })
   }
 
-  async function handleSendInvite(candidateId: string) {
-    setBusyCandidateId(candidateId)
-    setError("")
-
-    try {
-      await sendDemoInviteAction(candidateId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send invite")
-    } finally {
-      setBusyCandidateId(null)
-    }
-  }
-
   return (
     <div className="mx-auto flex min-h-svh max-w-6xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -177,7 +173,7 @@ function RecruiterDashboard() {
             Recruiter dashboard
           </h1>
           <p className="text-sm text-muted-foreground">
-            Create jobs, run sourcing, review candidates, and send demo invites.
+            Create jobs, run sourcing, review candidates, and track demo invites.
           </p>
         </div>
         <Button
@@ -334,6 +330,11 @@ function RecruiterDashboard() {
               {job.sourcingError ? (
                 <p className="text-sm text-destructive">{job.sourcingError}</p>
               ) : null}
+              {job.invite ? (
+                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                  Demo invite {job.invite.status} and sent to {job.invite.inviteEmail}.
+                </div>
+              ) : null}
               <div className="grid gap-3">
                 {job.candidates.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
@@ -345,43 +346,33 @@ function RecruiterDashboard() {
                     key={candidate._id}
                     className="rounded-md border p-4 text-sm"
                   >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="space-y-1">
-                        <p className="font-medium">{candidate.name}</p>
-                        <p className="text-muted-foreground">{candidate.email}</p>
+                    <div className="space-y-1">
+                      <p className="font-medium">{candidate.name}</p>
+                      <p className="text-muted-foreground">{candidate.email}</p>
+                      <p className="text-muted-foreground">
+                        {candidate.headline ?? "No headline"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        Status: {candidate.status}
+                        {candidate.matchScore !== undefined
+                          ? ` · Fit ${candidate.matchScore}/100`
+                          : ""}
+                      </p>
+                      {candidate.matchReason ? (
                         <p className="text-muted-foreground">
-                          {candidate.headline ?? "No headline"}
+                          {candidate.matchReason}
                         </p>
-                        <p className="text-muted-foreground">
-                          Status: {candidate.status}
-                          {candidate.matchScore !== undefined
-                            ? ` · Fit ${candidate.matchScore}/100`
-                            : ""}
-                        </p>
-                        {candidate.matchReason ? (
-                          <p className="text-muted-foreground">
-                            {candidate.matchReason}
-                          </p>
-                        ) : null}
-                        {candidate.sourceUrl ? (
-                          <a
-                            className="text-foreground underline underline-offset-4"
-                            href={candidate.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Open profile
-                          </a>
-                        ) : null}
-                      </div>
-                      <Button
-                        disabled={busyCandidateId === candidate._id}
-                        onClick={() => void handleSendInvite(candidate._id)}
-                      >
-                        {busyCandidateId === candidate._id
-                          ? "Sending…"
-                          : "Send email"}
-                      </Button>
+                      ) : null}
+                      {candidate.sourceUrl ? (
+                        <a
+                          className="text-foreground underline underline-offset-4"
+                          href={candidate.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open profile
+                        </a>
+                      ) : null}
                     </div>
                   </div>
                 ))}

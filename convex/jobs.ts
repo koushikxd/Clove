@@ -62,11 +62,18 @@ export const listForRecruiter = query({
           .withIndex("by_job", (q) => q.eq("jobId", job._id))
           .order("desc")
           .collect()
+        const invite = await ctx.db
+          .query("jobInvites")
+          .withIndex("by_job_kind", (q) =>
+            q.eq("jobId", job._id).eq("kind", "demo")
+          )
+          .unique()
 
         return {
           ...job,
           candidates,
           candidateCount: candidates.length,
+          invite,
         }
       })
     )

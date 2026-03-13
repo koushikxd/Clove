@@ -9,11 +9,15 @@
  */
 
 import type * as appUsers from "../appUsers.js";
-import type * as candidates from "../candidates.js";
 import type * as events from "../events.js";
 import type * as http from "../http.js";
+import type * as interviewActions from "../interviewActions.js";
+import type * as interviews from "../interviews.js";
+import type * as jobInvites from "../jobInvites.js";
 import type * as jobs from "../jobs.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_interviewWorker from "../lib/interviewWorker.js";
+import type * as lib_resume from "../lib/resume.js";
 import type * as lib_types from "../lib/types.js";
 import type * as sourcing from "../sourcing.js";
 
@@ -25,11 +29,15 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   appUsers: typeof appUsers;
-  candidates: typeof candidates;
   events: typeof events;
   http: typeof http;
+  interviewActions: typeof interviewActions;
+  interviews: typeof interviews;
+  jobInvites: typeof jobInvites;
   jobs: typeof jobs;
   "lib/auth": typeof lib_auth;
+  "lib/interviewWorker": typeof lib_interviewWorker;
+  "lib/resume": typeof lib_resume;
   "lib/types": typeof lib_types;
   sourcing: typeof sourcing;
 }>;

@@ -2,9 +2,11 @@ import { google } from "@ai-sdk/google"
 import { generateObject } from "ai"
 import { ConvexHttpClient } from "convex/browser"
 import Exa from "exa-js"
+import { Resend } from "resend"
 import { z } from "zod"
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
+import { buildCandidateInviteLink } from "@/lib/invite"
 import { inngest } from "./client"
 
 const searchCriteriaSchema = z.object({
@@ -127,7 +129,7 @@ async function scoreCandidates(
   const normalizedInput = results.map((result) => ({
     title: result.title ?? "",
     url: result.url,
-      text:
+    text:
       typeof result.text === "string"
         ? result.text.slice(0, 1200)
         : "",
@@ -200,6 +202,74 @@ async function runSourcingWorker(job: Doc<"jobs">) {
   }
 }
 
+async function sendDemoInviteEmail(payload: {
+  inviteEmail: string
+  inviteToken: string
+  job: {
+    title: string
+    description: string
+    location: string
+    type: string
+    requirements: string[]
+  }
+  seedCandidate: {
+    name: string
+    email: string
+    headline?: string
+    matchScore?: number
+    summary?: string
+  }
+}) {
+  const resendApiKey = process.env.RESEND_API_KEY
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL
+
+  if (!resendApiKey || !siteUrl) {
+    throw new Error("Missing invite email configuration")
+  }
+
+  const resend = new Resend(resendApiKey)
+  const inviteLink = buildCandidateInviteLink({
+    baseUrl: siteUrl,
+    email: payload.seedCandidate.email,
+    inviteToken: payload.inviteToken,
+  })
+
+  await resend.emails.send({
+    from: "onboarding@resend.dev",
+    to: payload.inviteEmail,
+    subject: `Interview invitation for ${payload.job.title}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px;">
+        <h1 style="margin: 0 0 16px; font-size: 24px;">Interview invitation</h1>
+        <p style="margin: 0 0 16px;">This is the demo interview invite for the job below.</p>
+        <div style="border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+          <p style="margin: 0 0 8px;"><strong>${payload.job.title}</strong></p>
+          <p style="margin: 0 0 8px;">${payload.job.location} · ${payload.job.type}</p>
+          <p style="margin: 0 0 8px;">${payload.job.description}</p>
+          <p style="margin: 0;"><strong>Requirements:</strong> ${payload.job.requirements.join(", ")}</p>
+        </div>
+        <div style="border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+          <p style="margin: 0 0 8px;"><strong>Seed candidate from sourcing</strong></p>
+          <p style="margin: 0 0 8px;">${payload.seedCandidate.name} (${payload.seedCandidate.email})</p>
+          <p style="margin: 0 0 8px;">${payload.seedCandidate.headline ?? "Profile sourced from Exa"}</p>
+          <p style="margin: 0;">${payload.seedCandidate.summary ?? ""}</p>
+        </div>
+        <a href="${inviteLink}" style="display: inline-block; background: #111827; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 999px; font-weight: 600;">
+          Accept invite
+        </a>
+      </div>
+    `,
+    text: [
+      `Interview invitation for ${payload.job.title}`,
+      `${payload.job.location} · ${payload.job.type}`,
+      payload.job.description,
+      `Requirements: ${payload.job.requirements.join(", ")}`,
+      `Seed candidate: ${payload.seedCandidate.name} (${payload.seedCandidate.email})`,
+      `Accept invite: ${inviteLink}`,
+    ].join("\n"),
+  })
+}
+
 export const sourcingWorkflow = inngest.createFunction(
   { id: "sourcing-workflow" },
   { event: "job.created" },
@@ -239,6 +309,24 @@ export const sourcingWorkflow = inngest.createFunction(
           candidates: sourcingResult.candidates,
         })
       })
+
+      const demoInvite = await step.run("create-demo-invite", async () => {
+        if (!process.env.EMAIL_ADDRESS) {
+          throw new Error("Missing EMAIL_ADDRESS")
+        }
+
+        return await convex.mutation(api.jobInvites.createOrRefreshDemoInvite, {
+          jobId,
+          workflowSecret,
+          inviteEmail: process.env.EMAIL_ADDRESS,
+        })
+      })
+
+      if (demoInvite) {
+        await step.run("send-demo-invite-email", async () => {
+          await sendDemoInviteEmail(demoInvite)
+        })
+      }
 
       return {
         candidateCount: sourcingResult.candidates.length,

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useQuery } from "convex/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,23 +15,56 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { api } from "@/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const inviteToken = searchParams.get("invite") ?? undefined
+  const invite = useQuery(
+    api.jobInvites.getPublicInvite,
+    inviteToken ? { inviteToken } : "skip"
+  )
   const defaultRole =
-    searchParams.get("role") === "candidate" ? "candidate" : "recruiter"
+    searchParams.get("role") === "candidate" && inviteToken
+      ? "candidate"
+      : "recruiter"
   const [role, setRole] = useState<"recruiter" | "candidate">(defaultRole)
   const [email, setEmail] = useState(searchParams.get("email") ?? "")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const inviteState = !inviteToken
+    ? "absent"
+    : invite === undefined
+      ? "loading"
+      : invite
+        ? "valid"
+        : "invalid"
+  const candidateAllowed = inviteState === "valid"
+  const candidatePending = inviteState === "loading"
+  const selectedRole =
+    role === "candidate" && (candidateAllowed || candidatePending)
+      ? "candidate"
+      : "recruiter"
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
     setLoading(true)
+
+    if (selectedRole === "candidate" && candidatePending) {
+      setLoading(false)
+      setError("Loading invite details. Please try again in a moment.")
+      return
+    }
+
+    if (selectedRole === "candidate" && !candidateAllowed) {
+      setLoading(false)
+      setError("Candidate access is invite-only")
+      return
+    }
 
     const { error } = await authClient.signIn.email({
       email,
@@ -44,10 +78,9 @@ export default function LoginPage() {
       return
     }
 
-    const params = new URLSearchParams({ role, email })
-    const invite = searchParams.get("invite")
-    if (invite) {
-      params.set("invite", invite)
+    const params = new URLSearchParams({ role: selectedRole, email })
+    if (inviteToken) {
+      params.set("invite", inviteToken)
     }
 
     router.push(`/auth/complete?${params.toString()}`)
@@ -59,7 +92,11 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle>Sign in</CardTitle>
           <CardDescription>
-            Enter your email and password to continue
+            {candidateAllowed
+              ? "Use your invite to continue as a candidate, or switch back to recruiter sign in."
+              : candidatePending
+                ? "Loading your invite details before candidate sign in."
+              : "Enter your email and password to continue"}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -69,15 +106,22 @@ export default function LoginPage() {
               <select
                 id="role"
                 className="h-9 rounded-md border bg-transparent px-3 text-sm"
-                value={role}
+                value={selectedRole}
                 onChange={(event) =>
                   setRole(event.target.value as "recruiter" | "candidate")
                 }
               >
                 <option value="recruiter">Recruiter</option>
-                <option value="candidate">Candidate</option>
+                {candidateAllowed || candidatePending ? (
+                  <option value="candidate">Candidate</option>
+                ) : null}
               </select>
             </div>
+            {candidateAllowed ? (
+              <p className="text-sm text-muted-foreground">
+                Invite loaded for {invite?.job?.title ?? "this interview"}.
+              </p>
+            ) : null}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -111,7 +155,7 @@ export default function LoginPage() {
             <p className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
-                href={`/signup?role=${role}${email ? `&email=${encodeURIComponent(email)}` : ""}${searchParams.get("invite") ? `&invite=${searchParams.get("invite")}` : ""}`}
+                href={`/signup?role=${selectedRole}${email ? `&email=${encodeURIComponent(email)}` : ""}${searchParams.get("invite") ? `&invite=${searchParams.get("invite")}` : ""}`}
                 className="font-medium text-foreground underline-offset-4 hover:underline"
               >
                 Sign up

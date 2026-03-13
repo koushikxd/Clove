@@ -32,6 +32,10 @@ export default defineSchema({
     phoneNumber: v.string(),
     yearsOfExperience: v.number(),
     resumeStorageId: v.id("_storage"),
+    resumeFileName: v.optional(v.string()),
+    resumeMimeType: v.optional(v.string()),
+    resumeText: v.optional(v.string()),
+    resumeTextUpdatedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -123,23 +127,57 @@ export default defineSchema({
     .index("by_linked_user_id", ["linkedUserId"])
     .index("by_invite_token", ["inviteToken"]),
 
+  jobInvites: defineTable({
+    jobId: v.id("jobs"),
+    inviteEmail: v.string(),
+    inviteToken: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("completed")
+    ),
+    kind: v.union(v.literal("demo")),
+    seedCandidateId: v.optional(v.id("candidates")),
+    acceptedByUserId: v.optional(v.string()),
+    acceptedCandidateId: v.optional(v.id("candidates")),
+    emailSentAt: v.optional(v.number()),
+    acceptedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_job", ["jobId"])
+    .index("by_invite_token", ["inviteToken"])
+    .index("by_job_kind", ["jobId", "kind"])
+    .index("by_accepted_user_id", ["acceptedByUserId"]),
+
   // ── Interview sessions ──
   interviews: defineTable({
     candidateId: v.id("candidates"),
+    candidateUserId: v.optional(v.string()),
     jobId: v.id("jobs"),
+    inviteId: v.id("jobInvites"),
     status: v.union(
       v.literal("pending"),
       v.literal("in_progress"),
       v.literal("completed"),
       v.literal("cancelled")
     ),
+    currentQuestionIndex: v.number(),
+    minQuestions: v.number(),
+    maxQuestions: v.number(),
+    endedReason: v.optional(v.string()),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    lastActivityAt: v.number(),
     totalTurns: v.number(),
     overallScore: v.optional(v.number()),
     createdAt: v.number(),
+    updatedAt: v.number(),
   })
     .index("by_candidate", ["candidateId"])
+    .index("by_candidate_user_id", ["candidateUserId"])
+    .index("by_invite", ["inviteId"])
     .index("by_job", ["jobId"])
     .index("by_status", ["status"]),
 
@@ -147,14 +185,18 @@ export default defineSchema({
   interviewTurns: defineTable({
     interviewId: v.id("interviews"),
     role: v.union(v.literal("ai"), v.literal("candidate")),
+    source: v.union(v.literal("ai"), v.literal("speech")),
     content: v.string(),
     turnIndex: v.number(),
+    questionIndex: v.number(),
     isPartial: v.boolean(),
     finalizedAt: v.optional(v.number()),
     createdAt: v.number(),
+    updatedAt: v.number(),
   })
     .index("by_interview", ["interviewId"])
-    .index("by_interview_index", ["interviewId", "turnIndex"]),
+    .index("by_interview_index", ["interviewId", "turnIndex"])
+    .index("by_interview_question", ["interviewId", "questionIndex"]),
 
   // ── AI evaluation of completed interviews ──
   evaluations: defineTable({

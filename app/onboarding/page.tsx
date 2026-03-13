@@ -19,7 +19,7 @@ export default function OnboardingPage() {
   const ensureCurrentUser = useMutation(api.appUsers.ensureCurrentUser)
   const inviteToken = searchParams.get("invite") ?? undefined
   const inviteDetails = useQuery(
-    api.appUsers.getInviteDetails,
+    api.jobInvites.getPublicInvite,
     inviteToken ? { inviteToken } : "skip"
   )
   const initRef = useRef(false)
@@ -33,6 +33,7 @@ export default function OnboardingPage() {
 
     void ensureCurrentUser({
       roleHint: inviteToken ? "candidate" : undefined,
+      inviteToken,
     }).catch(() => {
       initRef.current = false
     })
@@ -44,19 +45,23 @@ export default function OnboardingPage() {
       if (inviteToken) {
         loginUrl.searchParams.set("role", "candidate")
         loginUrl.searchParams.set("invite", inviteToken)
-        if (inviteDetails?.candidate.email) {
-          loginUrl.searchParams.set("email", inviteDetails.candidate.email)
+        if (inviteDetails?.seedCandidate?.email) {
+          loginUrl.searchParams.set("email", inviteDetails.seedCandidate.email)
         }
       }
       router.replace(`${loginUrl.pathname}${loginUrl.search}`)
     }
-  }, [inviteDetails?.candidate.email, inviteToken, router, session.data, session.isPending])
+  }, [inviteDetails?.seedCandidate?.email, inviteToken, router, session.data, session.isPending])
 
   useEffect(() => {
     if (viewer?.appUser.onboardingStatus === "completed") {
+      if (inviteToken) {
+        router.replace(`/interview/${inviteToken}`)
+        return
+      }
       router.replace("/")
     }
-  }, [router, viewer?.appUser.onboardingStatus])
+  }, [inviteToken, router, viewer?.appUser.onboardingStatus])
 
   if (session.isPending || (session.data && viewer === undefined)) {
     return (
@@ -155,8 +160,19 @@ function CandidateOnboarding({
   inviteToken?: string
   inviteDetails:
     | {
-        candidate: { email: string; name: string }
-        job: { id: string; title: string } | null
+        inviteEmail: string
+        seedCandidate:
+          | {
+              email: string
+              name: string
+            }
+          | null
+        job:
+          | {
+              id: string
+              title: string
+            }
+          | null
         inviteToken: string
       }
     | null
@@ -186,6 +202,21 @@ function CandidateOnboarding({
     setError("")
 
     try {
+      let resumeText: string | undefined
+      const extractionPayload = new FormData()
+      extractionPayload.append("resume", resume)
+      const extractionResponse = await fetch("/api/resume/extract", {
+        method: "POST",
+        body: extractionPayload,
+      })
+
+      if (extractionResponse.ok) {
+        const extractionResult = (await extractionResponse.json()) as {
+          resumeText?: string
+        }
+        resumeText = extractionResult.resumeText
+      }
+
       const uploadUrl = await generateResumeUploadUrl({})
       const uploadResult = await fetch(uploadUrl, {
         method: "POST",
@@ -207,8 +238,16 @@ function CandidateOnboarding({
         phoneNumber: form.phoneNumber,
         yearsOfExperience: Number(form.yearsOfExperience),
         resumeStorageId: storageId as Id<"_storage">,
+        resumeFileName: resume.name,
+        resumeMimeType: resume.type || "application/octet-stream",
+        resumeText,
         inviteToken,
       })
+
+      if (inviteToken) {
+        router.replace(`/interview/${inviteToken}`)
+        return
+      }
 
       router.replace("/")
     } catch (err) {
@@ -231,7 +270,7 @@ function CandidateOnboarding({
             {inviteDetails ? (
               <div className="rounded-md border p-3 text-sm text-muted-foreground">
                 Invited for {inviteDetails.job?.title ?? "a role"} as{" "}
-                {inviteDetails.candidate.email}
+                {inviteDetails.inviteEmail}
               </div>
             ) : null}
             <Field

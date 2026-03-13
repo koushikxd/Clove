@@ -27,6 +27,7 @@ export default function AuthCompletePage() {
     void ensureCurrentUser({
       roleHint:
         role === "candidate" || role === "recruiter" ? role : undefined,
+      inviteToken: invite ?? undefined,
     })
       .then(() => {
         router.replace(invite ? `/onboarding?invite=${invite}` : "/")

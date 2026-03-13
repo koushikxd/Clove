@@ -7,6 +7,7 @@ export const ensureCurrentUser = mutation({
     roleHint: v.optional(
       v.union(v.literal("recruiter"), v.literal("candidate"))
     ),
+    inviteToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const authUser = await requireAuthUser(ctx)
@@ -16,6 +17,14 @@ export const ensureCurrentUser = mutation({
       .unique()
 
     if (existing) {
+      if (
+        existing.role === "candidate" &&
+        args.roleHint === "candidate" &&
+        !args.inviteToken
+      ) {
+        throw new ConvexError("Candidates can only access the app through an invite")
+      }
+
       const nextValues =
         existing.email !== authUser.email ? { email: authUser.email } : null
 
@@ -31,6 +40,21 @@ export const ensureCurrentUser = mutation({
 
     if (!args.roleHint) {
       throw new ConvexError("A role is required to initialize the user")
+    }
+    if (args.roleHint === "candidate") {
+      const inviteToken = args.inviteToken
+      if (!inviteToken) {
+        throw new ConvexError("Candidates can only sign up through an invite")
+      }
+
+      const invite = await ctx.db
+        .query("jobInvites")
+        .withIndex("by_invite_token", (q) => q.eq("inviteToken", inviteToken))
+        .unique()
+
+      if (!invite) {
+        throw new ConvexError("Invalid invite")
+      }
     }
 
     const nameParts = splitName(authUser.name)
@@ -98,24 +122,36 @@ export const getInviteDetails = query({
       return null
     }
 
-    const candidate = await ctx.db
-      .query("candidates")
-      .withIndex("by_invite_token", (q) => q.eq("inviteToken", args.inviteToken))
+    const inviteToken = args.inviteToken
+
+    const invite = await ctx.db
+      .query("jobInvites")
+      .withIndex("by_invite_token", (q) => q.eq("inviteToken", inviteToken))
       .unique()
 
-    if (!candidate) {
+    if (!invite) {
       return null
     }
 
-    const job = await ctx.db.get(candidate.jobId)
+    const job = await ctx.db.get(invite.jobId)
+    const seedCandidate = invite.seedCandidateId
+      ? await ctx.db.get(invite.seedCandidateId)
+      : null
 
     return {
       inviteToken: args.inviteToken,
-      candidate: {
-        id: candidate._id,
-        email: candidate.email,
-        name: candidate.name,
+      invite: {
+        id: invite._id,
+        status: invite.status,
+        email: invite.inviteEmail,
       },
+      candidate: seedCandidate
+        ? {
+            id: seedCandidate._id,
+            email: seedCandidate.email,
+            name: seedCandidate.name,
+          }
+        : null,
       job: job
         ? {
             id: job._id,
@@ -189,12 +225,32 @@ export const completeCandidateOnboarding = mutation({
     phoneNumber: v.string(),
     yearsOfExperience: v.number(),
     resumeStorageId: v.id("_storage"),
+    resumeFileName: v.optional(v.string()),
+    resumeMimeType: v.optional(v.string()),
+    resumeText: v.optional(v.string()),
     inviteToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { authUser, appUser } = await requireAppUser(ctx)
     if (appUser.role !== "candidate") {
       throw new ConvexError("Only candidates can complete candidate onboarding")
+    }
+    if (!args.inviteToken) {
+      throw new ConvexError("Candidate onboarding requires a valid invite")
+    }
+
+    const inviteToken = args.inviteToken
+
+    const invite = await ctx.db
+      .query("jobInvites")
+      .withIndex("by_invite_token", (q) => q.eq("inviteToken", inviteToken))
+      .unique()
+
+    if (!invite) {
+      throw new ConvexError("Invalid invite")
+    }
+    if (invite.acceptedByUserId && invite.acceptedByUserId !== authUser._id) {
+      throw new ConvexError("This invite has already been claimed")
     }
 
     const now = Date.now()
@@ -216,6 +272,10 @@ export const completeCandidateOnboarding = mutation({
         phoneNumber: args.phoneNumber.trim(),
         yearsOfExperience: args.yearsOfExperience,
         resumeStorageId: args.resumeStorageId,
+        resumeFileName: args.resumeFileName,
+        resumeMimeType: args.resumeMimeType,
+        resumeText: args.resumeText,
+        resumeTextUpdatedAt: args.resumeText ? now : undefined,
         updatedAt: now,
       })
     } else {
@@ -225,27 +285,65 @@ export const completeCandidateOnboarding = mutation({
         phoneNumber: args.phoneNumber.trim(),
         yearsOfExperience: args.yearsOfExperience,
         resumeStorageId: args.resumeStorageId,
+        resumeFileName: args.resumeFileName,
+        resumeMimeType: args.resumeMimeType,
+        resumeText: args.resumeText,
+        resumeTextUpdatedAt: args.resumeText ? now : undefined,
         createdAt: now,
         updatedAt: now,
       })
     }
 
-    if (args.inviteToken) {
-      const candidate = await ctx.db
-        .query("candidates")
-        .withIndex("by_invite_token", (q) => q.eq("inviteToken", args.inviteToken))
-        .unique()
+    const seededCandidate = invite.seedCandidateId
+      ? await ctx.db.get(invite.seedCandidateId)
+      : null
 
-      if (candidate && candidate.email.toLowerCase() === authUser.email.toLowerCase()) {
-        await ctx.db.patch(candidate._id, {
-          linkedUserId: authUser._id,
-          resumeStorageId: args.resumeStorageId,
-          status: "accepted",
-          acceptedAt: now,
-          updatedAt: now,
-        })
-      }
+    const acceptedCandidateId =
+      seededCandidate &&
+      seededCandidate.email.toLowerCase() === authUser.email.toLowerCase()
+        ? seededCandidate._id
+        : invite.acceptedCandidateId
+
+    let candidateId = acceptedCandidateId
+
+    if (!candidateId) {
+      candidateId = await ctx.db.insert("candidates", {
+        jobId: invite.jobId,
+        name: `${args.firstName.trim()} ${args.lastName.trim()}`.trim(),
+        email: authUser.email,
+        firstName: args.firstName.trim(),
+        lastName: args.lastName.trim(),
+        linkedUserId: authUser._id,
+        source: "manual",
+        status: "accepted",
+        resumeStorageId: args.resumeStorageId,
+        inviteToken: invite.inviteToken,
+        acceptedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+    } else {
+      await ctx.db.patch(candidateId, {
+        name: `${args.firstName.trim()} ${args.lastName.trim()}`.trim(),
+        email: authUser.email,
+        firstName: args.firstName.trim(),
+        lastName: args.lastName.trim(),
+        linkedUserId: authUser._id,
+        status: "accepted",
+        resumeStorageId: args.resumeStorageId,
+        inviteToken: invite.inviteToken,
+        acceptedAt: now,
+        updatedAt: now,
+      })
     }
+
+    await ctx.db.patch(invite._id, {
+      status: "accepted",
+      acceptedByUserId: authUser._id,
+      acceptedCandidateId: candidateId,
+      acceptedAt: now,
+      updatedAt: now,
+    })
 
     return { ok: true }
   },
