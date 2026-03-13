@@ -153,5 +153,3 @@ bunx convex dev
 - Interview transcripts are stored as ordered turns, not one raw blob.
 - Evaluation results are stored separately from interview turns.
 - Recruiter email follow-up is intentionally skipped for the demo flow.
-
-For more setup detail, see [SETUP.md](./SETUP.md).
