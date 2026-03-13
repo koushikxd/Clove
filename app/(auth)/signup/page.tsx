@@ -97,7 +97,7 @@ export default function SignUpPage() {
               ? "Create the invited candidate account or switch back to recruiter signup."
               : candidatePending
                 ? "Loading your invite details before candidate signup."
-              : "Enter your details to get started"}
+                : "Enter your details to get started"}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

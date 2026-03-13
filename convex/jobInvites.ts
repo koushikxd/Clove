@@ -77,7 +77,9 @@ export const createOrRefreshDemoInvite = mutation({
 
     const seedCandidate = sourcedCandidates
       .filter((candidate) => candidate.source === "exa")
-      .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0))[0]
+      .sort(
+        (left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0)
+      )[0]
 
     if (!seedCandidate) {
       return null

@@ -54,7 +54,10 @@ function normalizeResumeText(text: string | null | undefined) {
   return normalized || undefined
 }
 
-function collectMatchedRequirements(resumeText: string, requirements: string[]) {
+function collectMatchedRequirements(
+  resumeText: string,
+  requirements: string[]
+) {
   const lowerResume = resumeText.toLowerCase()
   return requirements.filter((requirement) => {
     const keywords = tokenizeRequirement(requirement)
@@ -62,7 +65,10 @@ function collectMatchedRequirements(resumeText: string, requirements: string[]) 
   })
 }
 
-function collectRelevantResumeLines(resumeText: string, requirements: string[]) {
+function collectRelevantResumeLines(
+  resumeText: string,
+  requirements: string[]
+) {
   const lines = resumeText
     .split("\n")
     .map((line) => line.trim())
@@ -74,7 +80,9 @@ function collectRelevantResumeLines(resumeText: string, requirements: string[]) 
   for (const line of lines) {
     const lowerLine = line.toLowerCase()
     const matches = requirements.some((requirement) =>
-      tokenizeRequirement(requirement).some((keyword) => lowerLine.includes(keyword))
+      tokenizeRequirement(requirement).some((keyword) =>
+        lowerLine.includes(keyword)
+      )
     )
 
     if (!matches || seen.has(lowerLine)) {

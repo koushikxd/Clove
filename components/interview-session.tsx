@@ -96,7 +96,9 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
       window.SpeechRecognition ?? window.webkitSpeechRecognition
 
     if (!SpeechRecognitionApi) {
-      throw new Error("This interview currently requires Chrome speech recognition")
+      throw new Error(
+        "This interview currently requires Chrome speech recognition"
+      )
     }
 
     return SpeechRecognitionApi
@@ -124,7 +126,11 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
 
       const currentInterview = currentInterviewRef.current
 
-      if (cleaned && cleaned !== lastPartialSentRef.current && currentInterview) {
+      if (
+        cleaned &&
+        cleaned !== lastPartialSentRef.current &&
+        currentInterview
+      ) {
         lastPartialSentRef.current = cleaned
         void savePartialAnswer({
           interviewId: currentInterview.interviewId,
@@ -155,7 +161,9 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
       setAgentState("listening")
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to start speech recognition"
+        err instanceof Error
+          ? err.message
+          : "Failed to start speech recognition"
       )
     }
   }
@@ -210,7 +218,9 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
           lastPartialSentRef.current = ""
         })
         .catch((err) => {
-          setError(err instanceof Error ? err.message : "Failed to submit answer")
+          setError(
+            err instanceof Error ? err.message : "Failed to submit answer"
+          )
         })
     })
   }
@@ -317,7 +327,9 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
     }
   }, [mediaStream])
 
-  const finalizedTurns = (interviewState?.turns ?? []).filter((turn) => !turn.isPartial)
+  const finalizedTurns = (interviewState?.turns ?? []).filter(
+    (turn) => !turn.isPartial
+  )
   const visualizerState =
     interviewState?.interview?.status === "completed" ? "thinking" : agentState
 
@@ -369,7 +381,7 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
             />
 
             <div className="rounded-2xl border p-5">
-              <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="text-sm tracking-[0.2em] text-muted-foreground uppercase">
                 AI question
               </p>
               <p className="mt-3 text-lg leading-8">
@@ -379,10 +391,10 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
             </div>
 
             <div className="rounded-2xl border p-5">
-              <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="text-sm tracking-[0.2em] text-muted-foreground uppercase">
                 Your live answer
               </p>
-              <p className="mt-3 min-h-24 whitespace-pre-wrap text-base leading-7 text-foreground">
+              <p className="mt-3 min-h-24 text-base leading-7 whitespace-pre-wrap text-foreground">
                 {liveTranscript || "Start speaking after the AI finishes."}
               </p>
             </div>
@@ -426,8 +438,8 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
 
             {interviewState?.interview?.status === "completed" ? (
               <div className="rounded-2xl border p-5 text-sm text-muted-foreground">
-                Interview complete. We have stored the transcript and final state for
-                the next evaluation step.
+                Interview complete. We have stored the transcript and final
+                state for the next evaluation step.
               </div>
             ) : null}
           </CardContent>
@@ -448,7 +460,7 @@ export function InterviewSession({ inviteToken }: { inviteToken: string }) {
                 key={turn.id}
                 className="rounded-xl border p-3 text-sm leading-6"
               >
-                <p className="mb-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <p className="mb-1 text-xs tracking-[0.2em] text-muted-foreground uppercase">
                   {turn.role === "ai" ? "AI" : "Candidate"} · Q
                   {turn.questionIndex + 1}
                 </p>

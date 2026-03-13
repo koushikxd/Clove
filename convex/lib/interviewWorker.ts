@@ -83,7 +83,8 @@ export async function runInterviewWorker(args: {
 }
 
 function getFallbackQuestion(job: Doc<"jobs">, finalizedQuestionCount: number) {
-  const requirement = job.requirements[finalizedQuestionCount] ?? job.requirements[0]
+  const requirement =
+    job.requirements[finalizedQuestionCount] ?? job.requirements[0]
 
   if (finalizedQuestionCount === 0) {
     return `Tell me about your background and how it prepares you for this ${job.title} role.`

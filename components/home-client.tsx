@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { triggerJobCreatedAction } from "@/app/actions"
 import { authClient } from "@/lib/auth-client"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -32,7 +33,10 @@ export function HomeClient() {
   }, [router, viewer?.appUser?.onboardingStatus])
 
   useEffect(() => {
-    if (viewer?.appUser.role === "candidate" && candidateHomeState?.inviteToken) {
+    if (
+      viewer?.appUser.role === "candidate" &&
+      candidateHomeState?.inviteToken
+    ) {
       router.replace(`/interview/${candidateHomeState.inviteToken}`)
     }
   }, [candidateHomeState?.inviteToken, router, viewer?.appUser.role])
@@ -95,7 +99,11 @@ export function HomeClient() {
           </div>
           <Button
             variant="outline"
-            onClick={() => authClient.signOut({ fetchOptions: { onSuccess: () => router.replace("/") } })}
+            onClick={() =>
+              authClient.signOut({
+                fetchOptions: { onSuccess: () => router.replace("/") },
+              })
+            }
           >
             Sign out
           </Button>
@@ -112,6 +120,8 @@ function RecruiterDashboard() {
   const jobs = useQuery(api.jobs.listForRecruiter, {})
   const createJob = useMutation(api.jobs.create)
   const [isCreating, startCreateTransition] = useTransition()
+  const [expandedShortlistJobId, setExpandedShortlistJobId] =
+    useState<Id<"jobs"> | null>(null)
   const [error, setError] = useState("")
   const [form, setForm] = useState({
     title: "",
@@ -130,6 +140,10 @@ function RecruiterDashboard() {
         .map((item) => item.trim())
         .filter(Boolean),
     [form.requirements]
+  )
+  const shortlistedCandidates = useQuery(
+    api.evaluations.getShortlistedForJob,
+    expandedShortlistJobId ? { jobId: expandedShortlistJobId } : "skip"
   )
 
   async function handleCreateJob(event: React.FormEvent) {
@@ -173,7 +187,8 @@ function RecruiterDashboard() {
             Recruiter dashboard
           </h1>
           <p className="text-sm text-muted-foreground">
-            Create jobs, run sourcing, review candidates, and track demo invites.
+            Create jobs, run sourcing, review candidates, and track demo
+            invites.
           </p>
         </div>
         <Button
@@ -201,7 +216,10 @@ function RecruiterDashboard() {
                 required
                 value={form.title}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, title: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))
                 }
               />
             </div>
@@ -299,7 +317,10 @@ function RecruiterDashboard() {
               </div>
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <Button type="submit" disabled={isCreating || parsedRequirements.length === 0}>
+            <Button
+              type="submit"
+              disabled={isCreating || parsedRequirements.length === 0}
+            >
               {isCreating ? "Creating and queueing sourcing…" : "Create job"}
             </Button>
           </form>
@@ -332,8 +353,36 @@ function RecruiterDashboard() {
               ) : null}
               {job.invite ? (
                 <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                  Demo invite {job.invite.status} and sent to {job.invite.inviteEmail}.
+                  Demo invite {job.invite.status} and sent to{" "}
+                  {job.invite.inviteEmail}.
                 </div>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
+                <div>
+                  <p className="text-sm font-medium">Shortlisted candidates</p>
+                  <p className="text-sm text-muted-foreground">
+                    Review final interview results, transcript, and contact
+                    info.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setExpandedShortlistJobId((current) =>
+                      current === job._id ? null : job._id
+                    )
+                  }
+                >
+                  {expandedShortlistJobId === job._id
+                    ? "Hide shortlisted candidates"
+                    : "View shortlisted candidates"}
+                </Button>
+              </div>
+              {expandedShortlistJobId === job._id ? (
+                <ShortlistedCandidatesSection
+                  isLoading={shortlistedCandidates === undefined}
+                  candidates={shortlistedCandidates ?? []}
+                />
               ) : null}
               <div className="grid gap-3">
                 {job.candidates.length === 0 ? (
@@ -381,6 +430,176 @@ function RecruiterDashboard() {
           </Card>
         ))}
       </div>
+    </div>
+  )
+}
+
+function ShortlistedCandidatesSection({
+  candidates,
+  isLoading,
+}: {
+  candidates: Array<{
+    evaluationId: string
+    candidate: {
+      id: string
+      name: string
+      email: string
+      headline?: string
+      location?: string
+      summary?: string
+      phoneNumber?: string
+      yearsOfExperience?: number
+    }
+    interview: {
+      id: string
+      status: string
+      completedAt?: number
+      endedReason?: string
+      overallScore?: number
+    }
+    evaluation: {
+      scores: {
+        technicalSkills: number
+        communication: number
+        problemSolving: number
+        cultureFit: number
+        overall: number
+      }
+      summary: string
+      recommendation: string
+      createdAt: number
+    }
+    transcript: Array<{
+      id: string
+      role: "ai" | "candidate"
+      content: string
+      questionIndex: number
+      turnIndex: number
+      createdAt: number
+    }>
+  }>
+  isLoading: boolean
+}) {
+  if (isLoading) {
+    return (
+      <div className="rounded-md border p-4 text-sm text-muted-foreground">
+        Loading shortlisted candidates…
+      </div>
+    )
+  }
+
+  if (candidates.length === 0) {
+    return (
+      <div className="rounded-md border p-4 text-sm text-muted-foreground">
+        No shortlisted candidates yet.
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-4">
+      {candidates.map((entry) => (
+        <div key={entry.evaluationId} className="rounded-md border p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-1">
+              <p className="text-base font-medium">{entry.candidate.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {entry.candidate.email}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {entry.candidate.headline ?? "No headline available"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {entry.candidate.location ?? "Location unavailable"}
+                {entry.candidate.yearsOfExperience !== undefined
+                  ? ` · ${entry.candidate.yearsOfExperience} years experience`
+                  : ""}
+              </p>
+              {entry.candidate.phoneNumber ? (
+                <p className="text-sm text-muted-foreground">
+                  Phone: {entry.candidate.phoneNumber}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-col items-start gap-2 md:items-end">
+              <div className="rounded-full border px-3 py-1 text-sm font-medium">
+                Overall score {entry.evaluation.scores.overall}/100
+              </div>
+              <Button variant="outline" disabled>
+                Send email
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <ScoreCard
+              label="Technical"
+              value={entry.evaluation.scores.technicalSkills}
+            />
+            <ScoreCard
+              label="Communication"
+              value={entry.evaluation.scores.communication}
+            />
+            <ScoreCard
+              label="Problem solving"
+              value={entry.evaluation.scores.problemSolving}
+            />
+            <ScoreCard
+              label="Culture fit"
+              value={entry.evaluation.scores.cultureFit}
+            />
+            <ScoreCard
+              label="Overall"
+              value={entry.evaluation.scores.overall}
+            />
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-md border p-4 text-sm">
+              <p className="font-medium">Final result</p>
+              <p className="mt-2 text-muted-foreground">
+                {entry.evaluation.summary}
+              </p>
+              {entry.candidate.summary ? (
+                <p className="mt-3 text-muted-foreground">
+                  {entry.candidate.summary}
+                </p>
+              ) : null}
+              {entry.interview.endedReason ? (
+                <p className="mt-3 text-muted-foreground">
+                  Interview ended: {entry.interview.endedReason}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="rounded-md border p-4 text-sm">
+              <p className="font-medium">Interview transcript</p>
+              <div className="mt-3 grid gap-3">
+                {entry.transcript.map((turn) => (
+                  <div key={turn.id} className="rounded-md border p-3">
+                    <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
+                      {turn.role === "ai" ? "AI" : "Candidate"} · Q
+                      {turn.questionIndex + 1}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-foreground">
+                      {turn.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ScoreCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border p-3 text-sm">
+      <p className="text-muted-foreground">{label}</p>
+      <p className="mt-2 text-lg font-semibold">{value}/100</p>
     </div>
   )
 }

@@ -129,10 +129,7 @@ async function scoreCandidates(
   const normalizedInput = results.map((result) => ({
     title: result.title ?? "",
     url: result.url,
-    text:
-      typeof result.text === "string"
-        ? result.text.slice(0, 1200)
-        : "",
+    text: typeof result.text === "string" ? result.text.slice(0, 1200) : "",
   }))
 
   const { object } = await generateObject({
@@ -221,7 +218,8 @@ async function sendDemoInviteEmail(payload: {
   }
 }) {
   const resendApiKey = process.env.RESEND_API_KEY
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL
 
   if (!resendApiKey || !siteUrl) {
     throw new Error("Missing invite email configuration")

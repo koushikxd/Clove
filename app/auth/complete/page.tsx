@@ -25,8 +25,7 @@ export default function AuthCompletePage() {
     const invite = searchParams.get("invite")
 
     void ensureCurrentUser({
-      roleHint:
-        role === "candidate" || role === "recruiter" ? role : undefined,
+      roleHint: role === "candidate" || role === "recruiter" ? role : undefined,
       inviteToken: invite ?? undefined,
     })
       .then(() => {
@@ -34,7 +33,9 @@ export default function AuthCompletePage() {
       })
       .catch((err) => {
         ranRef.current = false
-        setError(err instanceof Error ? err.message : "Failed to initialize user")
+        setError(
+          err instanceof Error ? err.message : "Failed to initialize user"
+        )
       })
   }, [ensureCurrentUser, router, searchParams, session.data])
 

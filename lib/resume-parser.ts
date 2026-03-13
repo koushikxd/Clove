@@ -44,7 +44,10 @@ async function extractPdfText(file: File) {
       const lines: string[] = []
       let currentLine = ""
 
-      for (const item of textContent.items as Array<{ str?: string; hasEOL?: boolean }>) {
+      for (const item of textContent.items as Array<{
+        str?: string
+        hasEOL?: boolean
+      }>) {
         const chunk = item.str?.trim()
         if (chunk) {
           currentLine = currentLine ? `${currentLine} ${chunk}` : chunk

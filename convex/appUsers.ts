@@ -22,7 +22,9 @@ export const ensureCurrentUser = mutation({
         args.roleHint === "candidate" &&
         !args.inviteToken
       ) {
-        throw new ConvexError("Candidates can only access the app through an invite")
+        throw new ConvexError(
+          "Candidates can only access the app through an invite"
+        )
       }
 
       const nextValues =

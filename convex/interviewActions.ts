@@ -1,5 +1,5 @@
 import { v } from "convex/values"
-import { action } from "./_generated/server"
+import { action, type ActionCtx } from "./_generated/server"
 import { makeFunctionReference } from "convex/server"
 import type { Doc, Id } from "./_generated/dataModel"
 import { runInterviewWorker } from "./lib/interviewWorker"
@@ -65,10 +65,35 @@ const completeInterviewRef = makeFunctionReference<
   void
 >("interviews:completeInterview")
 
+const emitInterviewCompletedRef = makeFunctionReference<
+  "action",
+  { interviewId: Id<"interviews"> },
+  unknown
+>("events:emitInterviewCompleted")
+
 type ActionContextTurn = {
   role: "ai" | "candidate"
   content: string
   questionIndex: number
+}
+
+async function completeInterviewAndTriggerEvaluation(args: {
+  ctx: ActionCtx
+  interviewId: Id<"interviews">
+  endedReason: string
+}) {
+  await args.ctx.runMutation(completeInterviewRef, {
+    interviewId: args.interviewId,
+    endedReason: args.endedReason,
+  })
+
+  try {
+    await args.ctx.runAction(emitInterviewCompletedRef, {
+      interviewId: args.interviewId,
+    })
+  } catch (error) {
+    console.error("Failed to emit interview.completed event", error)
+  }
 }
 
 type StartInterviewContext = {
@@ -122,7 +147,9 @@ export const startInterview = action({
       maxQuestions: 6,
     })
 
-    const resumeBlob = await ctx.storage.get(context.candidateProfile.resumeStorageId)
+    const resumeBlob = await ctx.storage.get(
+      context.candidateProfile.resumeStorageId
+    )
     const resumeText =
       context.candidateProfile.resumeText ?? (await resumeBlob?.text())
     const resumeContext = buildJobAwareResumeContext({
@@ -181,7 +208,8 @@ export const submitAnswer = action({
     ).length
 
     if (finalizedQuestionCount >= context.interview.maxQuestions) {
-      await ctx.runMutation(completeInterviewRef, {
+      await completeInterviewAndTriggerEvaluation({
+        ctx,
         interviewId: args.interviewId,
         endedReason: "Reached the maximum question limit.",
       })
@@ -190,7 +218,9 @@ export const submitAnswer = action({
       })
     }
 
-    const resumeBlob = await ctx.storage.get(context.candidateProfile.resumeStorageId)
+    const resumeBlob = await ctx.storage.get(
+      context.candidateProfile.resumeStorageId
+    )
     const resumeText =
       context.candidateProfile.resumeText ?? (await resumeBlob?.text())
     const resumeContext = buildJobAwareResumeContext({
@@ -207,25 +237,29 @@ export const submitAnswer = action({
         yearsOfExperience: context.candidateProfile.yearsOfExperience,
         resumeContext,
       },
-      turns: context.finalizedTurns.map((turn: {
-        role: "ai" | "candidate"
-        content: string
-        questionIndex: number
-      }) => ({
-        role: turn.role,
-        content: turn.content,
-        questionIndex: turn.questionIndex,
-      })),
+      turns: context.finalizedTurns.map(
+        (turn: {
+          role: "ai" | "candidate"
+          content: string
+          questionIndex: number
+        }) => ({
+          role: turn.role,
+          content: turn.content,
+          questionIndex: turn.questionIndex,
+        })
+      ),
       minQuestions: context.interview.minQuestions,
       maxQuestions: context.interview.maxQuestions,
       finalizedQuestionCount,
     })
 
     if (workerResult.shouldEnd) {
-      await ctx.runMutation(completeInterviewRef, {
+      await completeInterviewAndTriggerEvaluation({
+        ctx,
         interviewId: args.interviewId,
         endedReason:
-          workerResult.endedReason ?? "Collected enough evidence to end interview.",
+          workerResult.endedReason ??
+          "Collected enough evidence to end interview.",
       })
     } else {
       await ctx.runMutation(appendAiTurnRef, {

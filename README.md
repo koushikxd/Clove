@@ -1,224 +1,157 @@
 # Clove
 
-Automated recruiting platform. Candidate sourcing, outreach, AI-powered interviews, evaluation, and shortlisting -- end to end.
+AI recruiting app for sourcing candidates, running async AI interviews, and reviewing shortlisted candidates.
 
-Two roles: **Recruiter** (posts jobs, reviews results) and **Candidate** (receives invite, uploads resume, completes AI interview).
+Two roles:
+- Recruiter: creates jobs, reviews sourced candidates, reviews shortlisted candidates
+- Candidate: accepts invite, uploads resume, completes interview
 
-> See [SETUP.md](./SETUP.md) for local dev setup, env keys, and running instructions.
+## What It Does
 
-## How it works
+Clove keeps the business process in workflows and uses AI only for the fuzzy parts.
 
-```
-Recruiter posts job
-       |
-       v
-  Inngest sourcing workflow
-       |
-       v
-  AI generates search criteria --> Exa websets finds candidates
-       |
-       v
-  Candidates normalized + ranked --> Invite emails sent (Resend)
-       |
-       v
-  Candidate clicks invite link --> Logs in --> Uploads resume (Convex storage)
-       |
-       v
-  Inngest resumes follow-up workflow
-       |
-       v
-  AI interview (browser mic/TTS, server-side session)
-       |
-       v
-  AI evaluates interview --> Scores + recommendation
-       |
-       v
-  Shortlisted candidates --> Recruiter notified (email + in-app)
-```
+Flow:
+1. Recruiter creates a job
+2. Inngest runs the sourcing workflow
+3. AI generates search criteria and Exa finds candidates
+4. Demo invite email is sent
+5. Candidate accepts invite, signs in, uploads resume
+6. AI interview worker runs the interview turn by turn
+7. Evaluation worker scores the full transcript
+8. Recruiter sees shortlisted candidates, scores, summaries, and transcripts in the dashboard
 
-## Flow detail
+## Stack
 
-### A. Candidate sourcing
+- Next.js 16
+- React 19
+- Convex
+- BetterAuth
+- Inngest
+- Vercel AI SDK + Gemini
+- Exa
+- Resend
+- Tailwind CSS v4
+- shadcn/ui
+- Bun
 
-1. Recruiter posts job in app
-2. Convex stores job, emits event to Inngest
-3. Inngest workflow: AI generates search criteria -> Exa websets search -> results normalized + ranked
-4. Invite emails sent via Resend (from: `onboarding@resend.dev`)
-5. Workflow pauses (`step.waitForEvent`) until candidate accepts
+## Core Tables
 
-### B. Acceptance + resume upload
+- `jobs`
+- `candidates`
+- `jobInvites`
+- `interviews`
+- `interviewTurns`
+- `evaluations`
+- `users`
+- `recruiterProfiles`
+- `candidateProfiles`
 
-- Email contains signed interview link with invite token
-- Candidate clicks link -> redirected to login -> uploads resume (stored in Convex file storage)
-- App validates token, updates candidate status to `accepted`
-- App emits `candidate.accepted` event -> Inngest resumes follow-up workflow
+## Local Setup
 
-### C. Live interview
+### Prerequisites
 
-- Browser: `SpeechRecognition` (mic input) + `SpeechSynthesis` (TTS output)
-- Backend: stores utterances + interview state per session
-- AI interview worker generates next question via Gemini (AI SDK)
-- Partial transcripts stored temporarily, finalized per turn
+- Bun
+- Docker
+- Convex account
 
-### D. Transcript handling
+### 1. Install dependencies
 
-Stored as **turns**, not raw blobs:
-
-- Each AI question = one turn (`role: "ai"`)
-- Each candidate answer = one turn (`role: "candidate"`)
-- Partial transcripts are temporary (`isPartial: true`)
-- Final transcript committed at end of turn
-- Complete interview transcript assembled from ordered turns
-
-### E. Evaluation + shortlisting
-
-- AI evaluates full transcript: technical skills, communication, problem solving, culture fit
-- Generates recommendation: `shortlist` / `reject` / `maybe`
-- Shortlisted candidates surfaced to recruiter with scores, summary, and full transcript
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Next.js 16 (App Router)                                    │
-│  ├── app/           UI pages + API routes                   │
-│  ├── lib/           Auth clients, shared utilities          │
-│  └── inngest/       Workflow client + function definitions  │
-├─────────────────────────────────────────────────────────────┤
-│  Convex             Database, file storage, auth (backend)  │
-│  ├── schema.ts      Application tables                     │
-│  └── better-auth/   Auth component (BetterAuth adapter)    │
-├─────────────────────────────────────────────────────────────┤
-│  Inngest            Workflow orchestration (docker)         │
-│  AI SDK + Gemini    AI workers (sourcing, interview, eval)  │
-│  Resend             Email delivery                          │
-│  Exa Websets        Candidate sourcing                      │
-└─────────────────────────────────────────────────────────────┘
+```bash
+bun install
 ```
 
-### Workflows vs AI workers
+### 2. Create env file
 
-Business process logic lives in **Inngest workflows** (deterministic, ordered steps). AI handles only the **fuzzy parts** via 3 focused workers:
-
-| Worker                | When                        | Responsibilities                                                                                                |
-| --------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Sourcing worker**   | After recruiter posts a job | Turn job description into search criteria, call Exa, score candidate fit, decide whether to invite              |
-| **Interview worker**  | During live interview       | Ask next question, adapt based on previous answer, maintain interview state, end when enough evidence collected |
-| **Evaluation worker** | After interview ends        | Analyze full transcript, produce scores + fit summary + shortlist recommendation                                |
-
-The workflow code controls the process (sourcing -> outreach -> interview -> evaluation -> shortlist). The AI workers are called within workflow steps only when a fuzzy decision is needed. This keeps the system predictable and debuggable.
-
-## Tech stack
-
-| Layer              | Tech                                              |
-| ------------------ | ------------------------------------------------- |
-| Framework          | Next.js 16, React 19, TypeScript                  |
-| Database + backend | Convex (schema, queries, mutations, file storage) |
-| Auth               | BetterAuth + Convex adapter (email/password)      |
-| Workflows          | Inngest (event-driven step functions)             |
-| AI                 | Vercel AI SDK + Google Gemini                     |
-| Email              | Resend                                            |
-| Sourcing           | Exa Websets                                       |
-| UI                 | shadcn/ui (base-nova), Tailwind v4                |
-| Package manager    | Bun                                               |
-
-## Database schema
-
-Defined in `convex/schema.ts`. Auth tables live in `convex/better-auth/schema.ts` (separate component).
-
-| Table            | Purpose                                                             |
-| ---------------- | ------------------------------------------------------------------- |
-| `jobs`           | Recruiter job postings (title, requirements, status, recruiterId)   |
-| `candidates`     | Sourced candidates per job (status lifecycle, resume, invite token) |
-| `interviews`     | Interview sessions (status, scores)                                 |
-| `interviewTurns` | Individual Q&A turns within an interview                            |
-| `evaluations`    | AI evaluation results (scores, summary, recommendation)             |
-
-## Project structure
-
-```
-├── app/
-│   ├── api/
-│   │   ├── auth/[...all]/route.ts    # BetterAuth catch-all
-│   │   └── inngest/route.ts          # Inngest serve endpoint
-│   ├── layout.tsx
-│   └── page.tsx
-├── components/
-│   ├── convex-client-provider.tsx
-│   ├── theme-provider.tsx
-│   └── ui/                           # shadcn components
-├── convex/
-│   ├── schema.ts                     # App tables (jobs, candidates, etc.)
-│   ├── better-auth/                  # Auth component
-│   ├── http.ts                       # HTTP router
-│   └── convex.config.ts
-├── inngest/
-│   └── client.ts                     # Inngest client instance
-├── lib/
-│   ├── auth-client.ts
-│   ├── auth-server.ts
-│   └── utils.ts
-├── docker-compose.yml                # Inngest dev server
-├── .env.example
-└── SETUP.md                          # Full setup instructions
+```bash
+cp .env.example .env.local
 ```
 
-## TODO
+Fill in these keys in `.env.local`:
 
-### Infrastructure
+```bash
+CONVEX_DEPLOYMENT=
+NEXT_PUBLIC_CONVEX_URL=
+NEXT_PUBLIC_CONVEX_SITE_URL=
 
-- [ ] Add role-based auth (recruiter vs candidate roles on user)
-- [ ] Add middleware.ts for route protection
-- [ ] Set up Convex environment variables for API keys (Resend, Exa, Gemini)
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
-### Convex backend
+GOOGLE_GENERATIVE_AI_API_KEY=
+RESEND_API_KEY=
+EMAIL_ADDRESS=
+EXA_API_KEY=
 
-- [ ] Job CRUD mutations + queries (create, list, get, update status)
-- [ ] Candidate mutations (create, update status, bulk insert from sourcing)
-- [ ] Interview mutations (create session, update status, increment turns)
-- [ ] Interview turn mutations (add turn, finalize turn, get transcript)
-- [ ] Evaluation mutations (create evaluation, get by job)
-- [ ] File upload HTTP action for resumes
-- [ ] Convex action to emit Inngest events (via fetch to Inngest API or Next.js API)
+INNGEST_DEVSERVER_URL=http://127.0.0.1:8288
+INNGEST_BASE_URL=
+INNGEST_EVENT_KEY=
+INNGEST_SIGNING_KEY=
 
-### Inngest workflows
+WORKFLOW_SECRET=
+```
 
-- [ ] Sourcing workflow: `job.created` -> sourcing worker -> normalize -> invite emails -> `step.waitForEvent`
-- [ ] Follow-up workflow: `candidate.accepted` -> create interview -> notify candidate
-- [ ] Evaluation workflow: `interview.completed` -> evaluation worker -> score -> update candidate status -> notify recruiter
+Generate secrets:
 
-### AI workers (Gemini via AI SDK)
+```bash
+openssl rand -base64 32
+```
 
-- [ ] **Sourcing worker** -- takes job description, outputs search criteria (structured output), scores candidate fit, returns invite/skip decision
-- [ ] **Interview worker** -- takes job context + resume + previous turns, outputs next question text, decides when to end interview
-- [ ] **Evaluation worker** -- takes full transcript + job requirements, outputs scores (technical, communication, problem-solving, culture fit) + summary + recommendation
+### 3. Start the app
 
-> Workers are called within Inngest workflow steps. They handle the fuzzy AI decisions. The workflow handles the deterministic process (ordering, retries, state transitions, email sending).
+Use 3 terminals.
 
-### Email (Resend)
+Terminal 1:
 
-- [ ] Invite email template (with signed interview link)
-- [ ] Shortlist notification email to recruiter
-- [ ] Interview reminder email
+```bash
+docker compose up -d
+```
 
-### Interview UI
+Terminal 2:
 
-- [ ] Interview page with SpeechRecognition (mic input)
-- [ ] SpeechSynthesis for AI questions (TTS output)
-- [ ] Real-time transcript display
-- [ ] Interview progress indicator
+```bash
+bunx convex dev
+```
 
-### Recruiter UI
+Terminal 3:
 
-- [ ] Job creation form
-- [ ] Job listing / dashboard
-- [ ] Candidate list per job (with status filters)
-- [ ] Interview transcript viewer
-- [ ] Evaluation results + scores display
+```bash
+bun dev
+```
 
-### Candidate UI
+App URLs:
 
-- [ ] Invite acceptance + login flow
-- [ ] Resume upload page
-- [ ] Interview interface
-- [ ] Interview completion confirmation
+- App: `http://localhost:3000`
+- Inngest: `http://localhost:8288`
+
+### 4. Set Convex env vars
+
+Values used by Convex functions must also be set in Convex:
+
+```bash
+bunx convex env set GOOGLE_GENERATIVE_AI_API_KEY <your-key>
+bunx convex env set RESEND_API_KEY <your-key>
+bunx convex env set EXA_API_KEY <your-key>
+bunx convex env set WORKFLOW_SECRET <your-secret>
+```
+
+`.env.local` is not automatically available inside Convex functions.
+
+## Useful Commands
+
+```bash
+bun dev
+bun build
+bun lint
+bun typecheck
+bun format
+docker compose up -d
+bunx convex dev
+```
+
+## Notes
+
+- Interview transcripts are stored as ordered turns, not one raw blob.
+- Evaluation results are stored separately from interview turns.
+- Recruiter email follow-up is intentionally skipped for the demo flow.
+
+For more setup detail, see [SETUP.md](./SETUP.md).

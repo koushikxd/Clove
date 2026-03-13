@@ -16,9 +16,11 @@ function createAudioAnalyser(
   mediaStream: MediaStream,
   options: AudioAnalyserOptions = {}
 ) {
-  const audioContext = new (window.AudioContext ||
+  const audioContext = new (
+    window.AudioContext ||
     (window as unknown as { webkitAudioContext: typeof AudioContext })
-      .webkitAudioContext)()
+      .webkitAudioContext
+  )()
   const source = audioContext.createMediaStreamSource(mediaStream)
   const analyser = audioContext.createAnalyser()
 
@@ -332,8 +334,7 @@ export type AgentState =
   | "speaking"
   | "thinking"
 
-export interface BarVisualizerProps
-  extends React.HTMLAttributes<HTMLDivElement> {
+export interface BarVisualizerProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Voice assistant state */
   state?: AgentState
   /** Number of bars to display */
@@ -464,7 +465,7 @@ const BarVisualizerComponent = React.forwardRef<
         className={cn(
           "relative flex justify-center gap-1.5",
           centerAlign ? "items-center" : "items-end",
-          "bg-muted h-32 w-full overflow-hidden rounded-lg p-4",
+          "h-32 w-full overflow-hidden rounded-lg bg-muted p-4",
           className
         )}
         style={{

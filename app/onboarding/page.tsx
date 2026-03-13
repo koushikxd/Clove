@@ -51,7 +51,13 @@ export default function OnboardingPage() {
       }
       router.replace(`${loginUrl.pathname}${loginUrl.search}`)
     }
-  }, [inviteDetails?.seedCandidate?.email, inviteToken, router, session.data, session.isPending])
+  }, [
+    inviteDetails?.seedCandidate?.email,
+    inviteToken,
+    router,
+    session.data,
+    session.isPending,
+  ])
 
   useEffect(() => {
     if (viewer?.appUser.onboardingStatus === "completed") {
@@ -78,13 +84,18 @@ export default function OnboardingPage() {
   return viewer.appUser.role === "recruiter" ? (
     <RecruiterOnboarding />
   ) : (
-    <CandidateOnboarding inviteToken={inviteToken} inviteDetails={inviteDetails} />
+    <CandidateOnboarding
+      inviteToken={inviteToken}
+      inviteDetails={inviteDetails}
+    />
   )
 }
 
 function RecruiterOnboarding() {
   const router = useRouter()
-  const completeOnboarding = useMutation(api.appUsers.completeRecruiterOnboarding)
+  const completeOnboarding = useMutation(
+    api.appUsers.completeRecruiterOnboarding
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [form, setForm] = useState({
@@ -161,26 +172,26 @@ function CandidateOnboarding({
   inviteDetails:
     | {
         inviteEmail: string
-        seedCandidate:
-          | {
-              email: string
-              name: string
-            }
-          | null
-        job:
-          | {
-              id: string
-              title: string
-            }
-          | null
+        seedCandidate: {
+          email: string
+          name: string
+        } | null
+        job: {
+          id: string
+          title: string
+        } | null
         inviteToken: string
       }
     | null
     | undefined
 }) {
   const router = useRouter()
-  const generateResumeUploadUrl = useMutation(api.appUsers.generateResumeUploadUrl)
-  const completeOnboarding = useMutation(api.appUsers.completeCandidateOnboarding)
+  const generateResumeUploadUrl = useMutation(
+    api.appUsers.generateResumeUploadUrl
+  )
+  const completeOnboarding = useMutation(
+    api.appUsers.completeCandidateOnboarding
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [resume, setResume] = useState<File | null>(null)
@@ -316,9 +327,7 @@ function CandidateOnboarding({
                 type="file"
                 accept=".pdf,.doc,.docx"
                 required
-                onChange={(event) =>
-                  setResume(event.target.files?.[0] ?? null)
-                }
+                onChange={(event) => setResume(event.target.files?.[0] ?? null)}
               />
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}

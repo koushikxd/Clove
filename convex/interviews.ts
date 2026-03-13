@@ -1,5 +1,10 @@
 import { ConvexError, v } from "convex/values"
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server"
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server"
 import type { Doc } from "./_generated/dataModel"
 import { requireAppUser } from "./lib/auth"
 
@@ -39,10 +44,14 @@ export const getCandidateHomeState = query({
 
     const invites = await ctx.db
       .query("jobInvites")
-      .withIndex("by_accepted_user_id", (q) => q.eq("acceptedByUserId", authUser._id))
+      .withIndex("by_accepted_user_id", (q) =>
+        q.eq("acceptedByUserId", authUser._id)
+      )
       .collect()
 
-    const latestInvite = invites.sort((left, right) => right.updatedAt - left.updatedAt)[0]
+    const latestInvite = invites.sort(
+      (left, right) => right.updatedAt - left.updatedAt
+    )[0]
 
     if (!latestInvite) {
       return null
@@ -69,7 +78,9 @@ export const getInterviewState = query({
     const { authUser } = await requireCandidate(ctx)
     const invite = await ctx.db
       .query("jobInvites")
-      .withIndex("by_invite_token", (q) => q.eq("inviteToken", args.inviteToken))
+      .withIndex("by_invite_token", (q) =>
+        q.eq("inviteToken", args.inviteToken)
+      )
       .unique()
 
     if (!invite) {
@@ -93,19 +104,21 @@ export const getInterviewState = query({
       ? (
           await ctx.db
             .query("interviewTurns")
-            .withIndex("by_interview_index", (q) => q.eq("interviewId", interview._id))
+            .withIndex("by_interview_index", (q) =>
+              q.eq("interviewId", interview._id)
+            )
             .collect()
         ).map(getTurnShape)
       : []
 
     const currentQuestion =
       interview && turns.length > 0
-        ? turns.find(
+        ? (turns.find(
             (turn) =>
               turn.role === "ai" &&
               turn.questionIndex === interview.currentQuestionIndex &&
               !turn.isPartial
-          ) ?? null
+          ) ?? null)
         : null
 
     return {
@@ -158,7 +171,9 @@ export const getActionContextForInvite = query({
     const { authUser, appUser } = await requireCandidate(ctx)
     const invite = await ctx.db
       .query("jobInvites")
-      .withIndex("by_invite_token", (q) => q.eq("inviteToken", args.inviteToken))
+      .withIndex("by_invite_token", (q) =>
+        q.eq("inviteToken", args.inviteToken)
+      )
       .unique()
 
     if (!invite) {
@@ -195,7 +210,9 @@ export const getActionContextForInvite = query({
     const finalizedTurns = interview
       ? await ctx.db
           .query("interviewTurns")
-          .withIndex("by_interview_index", (q) => q.eq("interviewId", interview._id))
+          .withIndex("by_interview_index", (q) =>
+            q.eq("interviewId", interview._id)
+          )
           .collect()
       : []
 
@@ -237,7 +254,9 @@ export const getActionContextForInterview = query({
 
     const finalizedTurns = await ctx.db
       .query("interviewTurns")
-      .withIndex("by_interview_index", (q) => q.eq("interviewId", interview._id))
+      .withIndex("by_interview_index", (q) =>
+        q.eq("interviewId", interview._id)
+      )
       .collect()
 
     return {
@@ -358,7 +377,9 @@ export const upsertPartialAnswer = mutation({
     const existingPartial = await ctx.db
       .query("interviewTurns")
       .withIndex("by_interview_question", (q) =>
-        q.eq("interviewId", args.interviewId).eq("questionIndex", args.questionIndex)
+        q
+          .eq("interviewId", args.interviewId)
+          .eq("questionIndex", args.questionIndex)
       )
       .collect()
 
@@ -408,7 +429,9 @@ export const finalizeCandidateAnswer = mutation({
     const turnsForQuestion = await ctx.db
       .query("interviewTurns")
       .withIndex("by_interview_question", (q) =>
-        q.eq("interviewId", args.interviewId).eq("questionIndex", args.questionIndex)
+        q
+          .eq("interviewId", args.interviewId)
+          .eq("questionIndex", args.questionIndex)
       )
       .collect()
 
@@ -439,7 +462,9 @@ export const finalizeCandidateAnswer = mutation({
     }
 
     await ctx.db.patch(interview._id, {
-      totalTurns: partialTurn ? interview.totalTurns + 1 : interview.totalTurns + 1,
+      totalTurns: partialTurn
+        ? interview.totalTurns + 1
+        : interview.totalTurns + 1,
       lastActivityAt: now,
       updatedAt: now,
     })

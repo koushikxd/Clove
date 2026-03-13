@@ -96,7 +96,7 @@ export default function LoginPage() {
               ? "Use your invite to continue as a candidate, or switch back to recruiter sign in."
               : candidatePending
                 ? "Loading your invite details before candidate sign in."
-              : "Enter your email and password to continue"}
+                : "Enter your email and password to continue"}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
