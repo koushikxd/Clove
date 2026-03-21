@@ -57,6 +57,12 @@ export const ensureCurrentUser = mutation({
       if (!invite) {
         throw new ConvexError("Invalid invite")
       }
+
+      if (invite.inviteEmail.toLowerCase() !== authUser.email.toLowerCase()) {
+        throw new ConvexError(
+          `This invite is only valid for ${invite.inviteEmail}`
+        )
+      }
     }
 
     const nameParts = splitName(authUser.name)
@@ -253,6 +259,9 @@ export const completeCandidateOnboarding = mutation({
     }
     if (invite.acceptedByUserId && invite.acceptedByUserId !== authUser._id) {
       throw new ConvexError("This invite has already been claimed")
+    }
+    if (invite.inviteEmail.toLowerCase() !== authUser.email.toLowerCase()) {
+      throw new ConvexError(`This invite is only valid for ${invite.inviteEmail}`)
     }
 
     const now = Date.now()

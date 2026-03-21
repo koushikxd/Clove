@@ -145,6 +145,10 @@ function RecruiterDashboard() {
     api.evaluations.getShortlistedForJob,
     expandedShortlistJobId ? { jobId: expandedShortlistJobId } : "skip"
   )
+  const totalShortlistedCount = (jobs ?? []).reduce(
+    (sum, job) => sum + job.shortlistedCount,
+    0
+  )
 
   async function handleCreateJob(event: React.FormEvent) {
     event.preventDefault()
@@ -327,6 +331,15 @@ function RecruiterDashboard() {
         </CardContent>
       </Card>
 
+      {totalShortlistedCount > 0 ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+          {totalShortlistedCount} shortlisted{" "}
+          {totalShortlistedCount === 1 ? "candidate is" : "candidates are"}{" "}
+          ready for recruiter review. Open the relevant job below to review
+          transcripts and final evaluations.
+        </div>
+      ) : null}
+
       <div className="grid gap-4">
         {(jobs ?? []).map((job) => (
           <Card key={job._id}>
@@ -353,14 +366,18 @@ function RecruiterDashboard() {
               ) : null}
               {job.invite ? (
                 <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                  Demo invite {job.invite.status} and sent to{" "}
-                  {job.invite.inviteEmail}.
+                  Demo invite {job.invite.status} and sent only to{" "}
+                  {job.invite.inviteEmail}. Sourced candidates remain listed
+                  below for demo review.
                 </div>
               ) : null}
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
                 <div>
                   <p className="text-sm font-medium">Shortlisted candidates</p>
                   <p className="text-sm text-muted-foreground">
+                    {job.shortlistedCount > 0
+                      ? `${job.shortlistedCount} shortlisted candidate${job.shortlistedCount === 1 ? "" : "s"} ready for review.`
+                      : "No shortlisted candidates yet."}{" "}
                     Review final interview results, transcript, and contact
                     info.
                   </p>

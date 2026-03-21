@@ -73,6 +73,9 @@ export const listForRecruiter = query({
           ...job,
           candidates,
           candidateCount: candidates.length,
+          shortlistedCount: candidates.filter(
+            (candidate) => candidate.status === "shortlisted"
+          ).length,
           invite,
         }
       })
